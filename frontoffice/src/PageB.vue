@@ -1,31 +1,38 @@
-
 <script>
 export default {
   data() {
     return {
-      button2Unlocked: false
+      // Variable état initial
+      button2Unlocked: false,
+      socket: null
     };
   },
   mounted() {
-    this.checkStatus();
-    this.interval = setInterval(this.checkStatus, 100); // vérifie toutes les 2 secondes
+    // Ouvre la WebSocket
+    this.socket = new WebSocket("ws://localhost:8000/ws");
+
+    this.socket.onmessage = (event) => {
+      // Gestion des events
+      if (event.data === "unlocked") {
+        this.button2Unlocked = true;
+      }
+    };
+
+    this.socket.onclose = () => {
+      console.log("WebSocket fermé");
+
+    };
   },
   beforeUnmount() {
-    clearInterval(this.interval);
-  },
-  methods: {
-
-    async checkStatus() {
-      const res = await fetch("http://localhost:8000/status");
-      const data = await res.json();
-      this.button2Unlocked = data.button_unlocked;
+    if (this.socket) {
+      this.socket.close();
     }
   }
 }
 </script>
 
 
-
+<!-- Accès Page B: /page-b : voir ./router/index.js  -->
 <template>
   <div>
     <h1>Page B</h1>

@@ -8,6 +8,7 @@ export default {
 }
 </script>
 
+<!-- Accès Page A: / : voir ./router/index.js  -->
 <template>
   <div>
     <h1>Page A</h1>

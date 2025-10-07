@@ -3,7 +3,7 @@ import PageA from '../PageA.vue';
 import PageB from '../PageB.vue';
 
 const routes = [
-  { path: '/', component: PageA },
+  { path: '/page-a', component: PageA },
   { path: '/page-b', component: PageB }
 ];
 
