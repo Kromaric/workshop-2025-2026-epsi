@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -10,18 +10,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# États partagés
-button_unlocked = False
+# Liste des connexions WebSocket actives
+websockets = []
 
-@app.get("/status")
-def get_status():
-    global button_unlocked
-    return {
-        "button_unlocked": button_unlocked
-    }
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    websockets.append(websocket)
+    try:
+        while True:
+            await websocket.receive_text()  # on garde la connexion ouverte
+    except:
+        websockets.remove(websocket)
 
+# Unlock le bouton 2 avec un event websocket
 @app.post("/unlock")
-def unlock_button2():
-    global button_unlocked
-    button_unlocked = True
+async def unlock_button2():
+    for ws in websockets:
+        await ws.send_text("unlocked")
     return {"message": "Button2 débloqué"}
