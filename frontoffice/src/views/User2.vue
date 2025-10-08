@@ -4,12 +4,13 @@ import { useRouter } from 'vue-router'
 import ChatBox from '../components/ChatBox.vue'
 
 const router = useRouter()
-const isButtonEnabled = ref(false)
 const isConnected = ref(false)
 const messages = ref([])
+const isButtonEnabled = ref(false)
 let websocket = null
 
 const currentUserId = 'user2'
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
 
 onMounted(() => {
   connectWebSocket()
@@ -22,36 +23,55 @@ onUnmounted(() => {
 })
 
 function connectWebSocket() {
-  websocket = new WebSocket(`ws://localhost:8000/ws/${currentUserId}`)
+  const wsUrl = `${WS_URL}/ws/team1/${currentUserId}`
+  console.log('🔌 Connexion WebSocket à:', wsUrl)
+
+  websocket = new WebSocket(wsUrl)
 
   websocket.onopen = () => {
     isConnected.value = true
-    console.log('User2 connected')
+    console.log('✅ User2 connecté à', wsUrl)
   }
 
   websocket.onmessage = (event) => {
-    const data = JSON.parse(event.data)
+    console.log('📨 Message reçu:', event.data)
 
-    if (data.type === 'button_state') {
-      isButtonEnabled.value = data.enabled
-    } else if (data.type === 'chat_history') {
-      messages.value = data.messages
-    } else if (data.type === 'chat_message') {
-      messages.value.push(data.message)
+    try {
+      const data = JSON.parse(event.data)
+
+      if (data.type === 'button_state') {
+        console.log('🔘 État bouton:', data.enabled)
+        isButtonEnabled.value = data.enabled
+
+      } else if (data.type === 'chat_history') {
+        console.log('📜 Historique chat:', data.messages)
+        messages.value = data.messages || []
+
+      } else if (data.type === 'chat_message') {
+        console.log('💬 Nouveau message:', data.message)
+        if (data.message && data.message.text) {
+          messages.value = [...messages.value, data.message]
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur parsing:', error)
     }
   }
 
   websocket.onclose = () => {
     isConnected.value = false
+    console.log('❌ User2 déconnecté')
     setTimeout(connectWebSocket, 3000)
   }
 
   websocket.onerror = (error) => {
-    console.error('WebSocket error:', error)
+    console.error('❌ WebSocket error:', error)
   }
 }
 
 function handleButtonClick() {
+  console.log('🖱️ Clic sur le bouton')
+
   if (isButtonEnabled.value && websocket) {
     websocket.send(JSON.stringify({
       action: 'button_click'
@@ -60,6 +80,8 @@ function handleButtonClick() {
 }
 
 function handleSendMessage(messageText) {
+  console.log('📤 Envoi du message:', messageText)
+
   if (websocket && isConnected.value) {
     websocket.send(JSON.stringify({
       action: 'send_message',
@@ -75,51 +97,56 @@ function goBack() {
 
 <template>
   <div class="page-container user2-theme">
+    <!-- Barre du haut -->
     <div class="top-bar">
       <button @click="goBack" class="back-button">
         ← Retour
       </button>
+      <div class="user-badge">
+        <span class="badge-icon">👤</span>
+        <span>Utilisateur 2</span>
+      </div>
       <div class="connection-status">
         <span class="status-dot" :class="{ connected: isConnected }"></span>
         {{ isConnected ? 'Connecté' : 'Déconnecté' }}
       </div>
     </div>
 
+    <!-- Contenu principal -->
     <div class="main-content">
       <!-- Section Bouton -->
       <div class="button-section">
-        <div class="user-badge">
-          <div class="badge-icon">👤</div>
-          <h1>Utilisateur 2</h1>
-        </div>
+        <div class="section-card">
+          <h2>🔘 Interaction</h2>
 
-        <div class="state-indicator" :class="{ active: isButtonEnabled }">
-          <div class="state-icon">
-            {{ isButtonEnabled ? '🔓' : '🔒' }}
+          <div class="state-indicator" :class="{ active: isButtonEnabled }">
+            <div class="state-icon">
+              {{ isButtonEnabled ? '🔓' : '🔒' }}
+            </div>
+            <div class="state-text">
+              {{ isButtonEnabled ? 'Bouton Activé' : 'Bouton Désactivé' }}
+            </div>
           </div>
-          <div class="state-text">
-            {{ isButtonEnabled ? 'Bouton Activé' : 'Bouton Désactivé' }}
+
+          <button
+            @click="handleButtonClick"
+            :disabled="!isButtonEnabled"
+            class="action-button"
+            :class="{ enabled: isButtonEnabled }"
+          >
+            <span class="button-text">
+              {{ isButtonEnabled ? 'Activer User 1' : 'En attente...' }}
+            </span>
+          </button>
+
+          <div class="info-message">
+            <p v-if="isButtonEnabled">
+              ✨ Cliquez sur le bouton pour activer l'Utilisateur 1
+            </p>
+            <p v-else>
+              ⏳ Attendez que l'Utilisateur 1 vous active
+            </p>
           </div>
-        </div>
-
-        <button
-          @click="handleButtonClick"
-          :disabled="!isButtonEnabled"
-          class="action-button"
-          :class="{ enabled: isButtonEnabled }"
-        >
-          <span class="button-text">
-            {{ isButtonEnabled ? 'Activer User 1' : 'En attente...' }}
-          </span>
-        </button>
-
-        <div class="info-message">
-          <p v-if="isButtonEnabled">
-            ✨ Cliquez sur le bouton pour activer l'Utilisateur 1
-          </p>
-          <p v-else>
-            ⏳ Attendez que l'Utilisateur 1 vous active
-          </p>
         </div>
       </div>
 
@@ -151,9 +178,10 @@ function goBack() {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
-  max-width: 1200px;
+  max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
+  gap: 1rem;
 }
 
 .back-button {
@@ -171,6 +199,22 @@ function goBack() {
 .back-button:hover {
   background: rgba(255, 255, 255, 0.3);
   transform: translateX(-5px);
+}
+
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+  color: white;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+}
+
+.badge-icon {
+  font-size: 1.25rem;
 }
 
 .connection-status {
@@ -199,49 +243,61 @@ function goBack() {
 }
 
 .main-content {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
 }
 
-@media (max-width: 968px) {
-  .main-content {
-    grid-template-columns: 1fr;
-  }
-}
-
 .button-section,
 .chat-section {
+  background: transparent;
+}
+
+.content-box {
   background: white;
   border-radius: 2rem;
-  padding: 2rem;
+  padding: 2.5rem;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
-.user-badge {
+.user-badge-large {
   text-align: center;
   margin-bottom: 2rem;
 }
 
-.badge-icon {
-  font-size: 3rem;
-  margin-bottom: 0.5rem;
+.badge-icon-large {
+  font-size: 3.5rem;
+  margin-bottom: 1rem;
 }
 
-.user-badge h1 {
+.user-badge-large h1 {
   color: #a855f7;
-  font-size: 1.75rem;
+  font-size: 2rem;
   margin: 0;
 }
 
+.section-card {
+  background: white;
+  border-radius: 2rem;
+  padding: 2.5rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.section-card h2 {
+  text-align: center;
+  color: #1e293b;
+  font-size: 1.75rem;
+  margin: 0 0 2rem 0;
+}
+
 .state-indicator {
-  padding: 1.25rem;
+  padding: 1.5rem;
   border-radius: 1rem;
   background: #fee;
   border: 3px solid #fcc;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
   text-align: center;
   transition: all 0.3s;
 }
@@ -252,12 +308,12 @@ function goBack() {
 }
 
 .state-icon {
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
+  font-size: 3rem;
+  margin-bottom: 0.75rem;
 }
 
 .state-text {
-  font-size: 1.125rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: #c00;
 }
@@ -268,8 +324,8 @@ function goBack() {
 
 .action-button {
   width: 100%;
-  padding: 1.25rem;
-  font-size: 1.125rem;
+  padding: 1.5rem;
+  font-size: 1.25rem;
   font-weight: bold;
   border: none;
   border-radius: 1rem;
@@ -277,7 +333,7 @@ function goBack() {
   background: #d1d5db;
   color: #6b7280;
   transition: all 0.3s;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
 }
 
 .action-button.enabled {
@@ -305,7 +361,32 @@ function goBack() {
 .info-message p {
   margin: 0;
   color: #475569;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   line-height: 1.6;
+}
+
+@media (max-width: 968px) {
+  .top-bar {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .main-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-container {
+    padding: 1rem;
+  }
+
+  .content-box {
+    padding: 1.5rem;
+  }
+
+  .user-badge-large h1 {
+    font-size: 1.5rem;
+  }
 }
 </style>

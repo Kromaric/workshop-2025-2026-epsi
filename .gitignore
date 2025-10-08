@@ -8,6 +8,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 frontoffice/node_modules
+
+frontoffice/.env
+
 .DS_Store
 dist
 dist-ssr
