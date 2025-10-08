@@ -314,4 +314,129 @@ function isOwnMessage(userId) {
 .send-icon {
   font-size: 1.25rem;
 }
+
+/* Responsive Mobile */
+@media (max-width: 640px) {
+  .chat-box {
+    height: 450px;
+    border-radius: 1rem;
+  }
+
+  .chat-header {
+    padding: 0.875rem 1.25rem;
+  }
+
+  .chat-icon {
+    font-size: 1.25rem;
+  }
+
+  .chat-title h3 {
+    font-size: 1.125rem;
+  }
+
+  .message-count {
+    font-size: 0.8125rem;
+  }
+
+  .chat-messages {
+    padding: 0.875rem;
+    gap: 0.625rem;
+  }
+
+  .message-bubble {
+    max-width: 85%;
+    padding: 0.625rem 0.875rem;
+  }
+
+  .message-header {
+    margin-bottom: 0.375rem;
+    gap: 0.75rem;
+  }
+
+  .message-user {
+    font-size: 0.6875rem;
+  }
+
+  .message-time {
+    font-size: 0.5625rem;
+  }
+
+  .message-text {
+    font-size: 0.8125rem;
+  }
+
+  .empty-state {
+    padding: 2rem 0.875rem;
+  }
+
+  .empty-icon {
+    font-size: 2.5rem;
+  }
+
+  .empty-state p {
+    font-size: 0.875rem;
+  }
+
+  .empty-subtitle {
+    font-size: 0.8125rem;
+  }
+
+  .chat-input-container {
+    padding: 0.875rem;
+    gap: 0.625rem;
+  }
+
+  .chat-input {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.8125rem;
+  }
+
+  .send-button {
+    padding: 0.625rem 1rem;
+  }
+
+  .send-icon {
+    font-size: 1.125rem;
+  }
+}
+
+/* Responsive Petits écrans (< 400px) */
+@media (max-width: 400px) {
+  .chat-box {
+    height: 400px;
+  }
+
+  .chat-header {
+    padding: 0.75rem 1rem;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+
+  .message-bubble {
+    max-width: 90%;
+  }
+
+  .chat-input {
+    font-size: 0.875rem;
+  }
+}
+
+/* Responsive Tablette (641px - 1024px) */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .chat-box {
+    height: 550px;
+  }
+}
+
+/* Responsive Paysage mobile */
+@media (max-width: 900px) and (orientation: landscape) {
+  .chat-box {
+    height: 350px;
+  }
+
+  .empty-state {
+    padding: 1.5rem 0.875rem;
+  }
+}
 </style>

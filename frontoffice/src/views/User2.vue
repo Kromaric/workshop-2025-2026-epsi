@@ -116,8 +116,11 @@ function goBack() {
     <div class="main-content">
       <!-- Section Bouton -->
       <div class="button-section">
-        <div class="section-card">
-          <h2>🔘 Interaction</h2>
+        <div class="content-box">
+          <div class="user-badge-large">
+            <div class="badge-icon-large">👤</div>
+            <h1>Utilisateur 2</h1>
+          </div>
 
           <div class="state-indicator" :class="{ active: isButtonEnabled }">
             <div class="state-icon">
@@ -166,7 +169,7 @@ function goBack() {
 <style scoped>
 .page-container {
   min-height: 100vh;
-  padding: 2rem;
+  padding: 1.5rem;
 }
 
 .user2-theme {
@@ -181,7 +184,8 @@ function goBack() {
   max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
-  gap: 1rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .back-button {
@@ -278,20 +282,6 @@ function goBack() {
   margin: 0;
 }
 
-.section-card {
-  background: white;
-  border-radius: 2rem;
-  padding: 2.5rem;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-}
-
-.section-card h2 {
-  text-align: center;
-  color: #1e293b;
-  font-size: 1.75rem;
-  margin: 0 0 2rem 0;
-}
-
 .state-indicator {
   padding: 1.5rem;
   border-radius: 1rem;
@@ -365,28 +355,233 @@ function goBack() {
   line-height: 1.6;
 }
 
+/* Responsive Mobile */
 @media (max-width: 968px) {
+  .page-container {
+    padding: 1rem;
+  }
+
   .top-bar {
-    flex-wrap: wrap;
     justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .back-button,
+  .user-badge,
+  .connection-status {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.95rem;
+  }
+
+  .badge-icon {
+    font-size: 1.125rem;
   }
 
   .main-content {
     grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .content-box {
+    padding: 2rem 1.5rem;
+  }
+
+  .user-badge-large h1 {
+    font-size: 1.75rem;
+  }
+
+  .badge-icon-large {
+    font-size: 3rem;
+  }
+
+  .state-indicator {
+    padding: 1.25rem;
+  }
+
+  .state-icon {
+    font-size: 2.5rem;
+  }
+
+  .state-text {
+    font-size: 1.125rem;
+  }
+
+  .action-button {
+    padding: 1.25rem;
+    font-size: 1.125rem;
+  }
+
+  .info-message p {
+    font-size: 0.875rem;
   }
 }
 
-@media (max-width: 640px) {
+/* Responsive Petits écrans (< 400px) */
+@media (max-width: 400px) {
+  .page-container {
+    padding: 0.75rem;
+  }
+
+  .top-bar {
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .back-button,
+  .user-badge,
+  .connection-status {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .content-box {
+    padding: 1.5rem 1.25rem;
+    border-radius: 1.5rem;
+  }
+
+  .user-badge-large {
+    margin-bottom: 1.5rem;
+  }
+
+  .user-badge-large h1 {
+    font-size: 1.5rem;
+  }
+
+  .badge-icon-large {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .state-indicator {
+    padding: 1rem;
+    border-width: 2px;
+    margin-bottom: 1.5rem;
+  }
+
+  .state-icon {
+    font-size: 2.25rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .state-text {
+    font-size: 1rem;
+  }
+
+  .action-button {
+    padding: 1.125rem;
+    font-size: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .info-message {
+    padding: 0.875rem;
+  }
+
+  .info-message p {
+    font-size: 0.8125rem;
+  }
+}
+
+/* Responsive Tablette (641px - 968px) */
+@media (min-width: 641px) and (max-width: 968px) {
+  .main-content {
+    gap: 1.75rem;
+  }
+
+  .content-box {
+    padding: 2.25rem;
+  }
+
+  .user-badge-large h1 {
+    font-size: 1.875rem;
+  }
+
+  .badge-icon-large {
+    font-size: 3.25rem;
+  }
+}
+
+/* Responsive Paysage mobile */
+@media (max-width: 900px) and (orientation: landscape) {
   .page-container {
     padding: 1rem;
+  }
+
+  .top-bar {
+    margin-bottom: 1rem;
+  }
+
+  .main-content {
+    gap: 1.25rem;
   }
 
   .content-box {
     padding: 1.5rem;
   }
 
+  .user-badge-large {
+    margin-bottom: 1.25rem;
+  }
+
   .user-badge-large h1 {
     font-size: 1.5rem;
+  }
+
+  .badge-icon-large {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .state-indicator {
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .state-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .state-text {
+    font-size: 1.125rem;
+  }
+
+  .action-button {
+    padding: 1.125rem;
+    font-size: 1.125rem;
+    margin-bottom: 1rem;
+  }
+
+  .info-message {
+    padding: 0.875rem;
+  }
+}
+
+/* Responsive Desktop (> 1024px) */
+@media (min-width: 1025px) {
+  .back-button:active {
+    transform: translateX(-3px);
+  }
+
+  .action-button.enabled:active {
+    transform: translateY(0);
+  }
+}
+
+/* Safe area pour iPhone X et plus */
+@supports (padding: max(0px)) {
+  .page-container {
+    padding-left: max(1.5rem, env(safe-area-inset-left));
+    padding-right: max(1.5rem, env(safe-area-inset-right));
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Touch optimization pour mobile */
+@media (hover: none) and (pointer: coarse) {
+  .back-button,
+  .action-button.enabled {
+    min-height: 44px; /* Zone de touch minimum recommandée */
   }
 }
 </style>

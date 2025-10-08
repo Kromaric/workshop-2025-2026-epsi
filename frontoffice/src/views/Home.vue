@@ -12,7 +12,8 @@ function selectUser(userId) {
   <div class="home-container">
     <div class="welcome-box">
       <h1>🎯 Bienvenue</h1>
-      <p class="subtitle">Choisissez votre utilisateur</p>
+      <p class="subtitle">Escape Game au Musée</p>
+      <p class="description">Choisissez votre utilisateur pour commencer l'aventure</p>
 
       <div class="button-grid">
         <button
@@ -21,6 +22,7 @@ function selectUser(userId) {
         >
           <div class="button-icon">👤</div>
           <div class="button-label">Utilisateur 1</div>
+          <div class="button-subtitle">Résoudre les énigmes</div>
         </button>
 
         <button
@@ -29,12 +31,13 @@ function selectUser(userId) {
         >
           <div class="button-icon">👤</div>
           <div class="button-label">Utilisateur 2</div>
+          <div class="button-subtitle">Collaborer en équipe</div>
         </button>
       </div>
 
       <div class="info-box">
         <p>💡 <strong>Comment ça marche ?</strong></p>
-        <p>Chaque utilisateur peut activer le bouton de l'autre en temps réel via WebSocket</p>
+        <p>Travaillez en équipe pour résoudre des énigmes basées sur les œuvres du musée</p>
       </div>
     </div>
   </div>
@@ -47,16 +50,28 @@ function selectUser(userId) {
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 2rem;
+  padding: 1rem;
 }
 
 .welcome-box {
   background: white;
   border-radius: 2rem;
-  padding: 3rem;
+  padding: 2.5rem;
   max-width: 600px;
   width: 100%;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 h1 {
@@ -64,31 +79,44 @@ h1 {
   color: #1e293b;
   font-size: 2.5rem;
   margin-bottom: 0.5rem;
+  line-height: 1.2;
 }
 
 .subtitle {
   text-align: center;
+  color: #8b5cf6;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+}
+
+.description {
+  text-align: center;
   color: #64748b;
-  font-size: 1.125rem;
-  margin-bottom: 2rem;
+  font-size: 1rem;
+  margin: 0 0 2rem 0;
 }
 
 .button-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
+  gap: 1.25rem;
   margin-bottom: 2rem;
 }
 
 .user-button {
   padding: 2rem 1rem;
   border: none;
-  border-radius: 1rem;
+  border-radius: 1.25rem;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
   color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .user1-button {
@@ -111,11 +139,17 @@ h1 {
 
 .button-icon {
   font-size: 3rem;
-  margin-bottom: 0.5rem;
 }
 
 .button-label {
-  font-size: 1.125rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.button-subtitle {
+  font-size: 0.875rem;
+  opacity: 0.9;
+  font-weight: 400;
 }
 
 .info-box {
@@ -128,7 +162,7 @@ h1 {
 .info-box p {
   margin: 0.5rem 0;
   color: #475569;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   line-height: 1.6;
 }
 
@@ -136,9 +170,110 @@ h1 {
   color: #1e293b;
 }
 
+/* Responsive Mobile */
 @media (max-width: 640px) {
+  .home-container {
+    padding: 1rem;
+  }
+
+  .welcome-box {
+    padding: 2rem 1.5rem;
+    border-radius: 1.5rem;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  .subtitle {
+    font-size: 1.125rem;
+  }
+
+  .description {
+    font-size: 0.95rem;
+  }
+
   .button-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .user-button {
+    padding: 1.75rem 1rem;
+  }
+
+  .button-icon {
+    font-size: 2.5rem;
+  }
+
+  .button-label {
+    font-size: 1.125rem;
+  }
+
+  .button-subtitle {
+    font-size: 0.8125rem;
+  }
+
+  .info-box {
+    padding: 1.25rem;
+  }
+
+  .info-box p {
+    font-size: 0.875rem;
+  }
+}
+
+/* Responsive Petits écrans (< 400px) */
+@media (max-width: 400px) {
+  .welcome-box {
+    padding: 1.5rem 1rem;
+  }
+
+  h1 {
+    font-size: 1.75rem;
+  }
+
+  .subtitle {
+    font-size: 1rem;
+  }
+
+  .user-button {
+    padding: 1.5rem 0.75rem;
+  }
+
+  .button-icon {
+    font-size: 2rem;
+  }
+
+  .button-label {
+    font-size: 1rem;
+  }
+}
+
+/* Responsive Tablette (641px - 1024px) */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .welcome-box {
+    max-width: 550px;
+    padding: 2.5rem 2rem;
+  }
+
+  .button-grid {
+    gap: 1.5rem;
+  }
+
+  .user-button {
+    padding: 2rem 1.25rem;
+  }
+}
+
+/* Responsive Grand écran (> 1024px) */
+@media (min-width: 1025px) {
+  .welcome-box {
+    max-width: 650px;
+  }
+
+  .user-button:active {
+    transform: translateY(-3px);
   }
 }
 </style>

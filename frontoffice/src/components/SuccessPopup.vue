@@ -454,4 +454,184 @@ function handleClose() {
     font-size: 0.875rem;
   }
 }
+
+/* Responsive Mobile */
+@media (max-width: 640px) {
+  .popup-overlay {
+    padding: 0.5rem;
+  }
+
+  .popup-container {
+    padding: 2rem 1.5rem;
+    border-radius: 1.5rem;
+    max-height: 95vh;
+  }
+
+  .success-checkmark {
+    width: 60px;
+    height: 60px;
+  }
+
+  .check-icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .icon-line.line-tip {
+    width: 18px;
+    top: 35px;
+    left: 11px;
+  }
+
+  .icon-line.line-long {
+    width: 35px;
+    top: 29px;
+    right: 6px;
+  }
+
+  .popup-title {
+    font-size: 2rem;
+  }
+
+  .popup-subtitle {
+    font-size: 1rem;
+  }
+
+  .portrait-frame {
+    width: 100px;
+    height: 100px;
+  }
+
+  .portrait-icon {
+    font-size: 3rem;
+  }
+
+  .artist-info {
+    padding: 1.5rem;
+  }
+
+  .artist-name {
+    font-size: 1.5rem;
+  }
+
+  .artist-dates {
+    font-size: 0.95rem;
+  }
+
+  .info-content {
+    gap: 1.25rem;
+  }
+
+  .bio-intro {
+    font-size: 1rem;
+  }
+
+  .info-section h4 {
+    font-size: 1rem;
+  }
+
+  .info-section p {
+    font-size: 0.875rem;
+  }
+
+  .fun-fact {
+    padding: 1.25rem;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .fact-icon {
+    font-size: 1.75rem;
+  }
+
+  .fact-content strong {
+    font-size: 1rem;
+  }
+
+  .fact-content p {
+    font-size: 0.875rem;
+  }
+
+  .continue-btn {
+    padding: 1.125rem 1.5rem;
+    font-size: 1rem;
+  }
+}
+
+/* Responsive Petits écrans (< 400px) */
+@media (max-width: 400px) {
+  .popup-container {
+    padding: 1.5rem 1rem;
+  }
+
+  .popup-title {
+    font-size: 1.75rem;
+  }
+
+  .popup-subtitle {
+    font-size: 0.95rem;
+  }
+
+  .artist-name {
+    font-size: 1.375rem;
+  }
+
+  .info-section h4 {
+    font-size: 0.95rem;
+  }
+
+  .info-section p,
+  .fact-content p {
+    font-size: 0.8125rem;
+  }
+}
+
+/* Responsive Tablette (641px - 1024px) */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .popup-container {
+    max-width: 650px;
+    padding: 2.75rem 2.25rem;
+  }
+}
+
+/* Responsive Paysage mobile */
+@media (max-width: 900px) and (orientation: landscape) {
+  .popup-container {
+    max-height: 85vh;
+  }
+
+  .success-animation {
+    margin-bottom: 1rem;
+  }
+
+  .popup-title {
+    font-size: 1.75rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .popup-subtitle {
+    margin-bottom: 1rem;
+  }
+
+  .artist-portrait {
+    margin-bottom: 1rem;
+  }
+
+  .portrait-frame {
+    width: 80px;
+    height: 80px;
+  }
+
+  .portrait-icon {
+    font-size: 2.5rem;
+  }
+
+  .artist-info {
+    padding: 1.5rem;
+  }
+
+  .info-content {
+    gap: 1rem;
+  }
+}
 </style>
