@@ -1,11 +1,15 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import ChatBox from '../components/ChatBox.vue'
 
 const router = useRouter()
 const isButtonEnabled = ref(false)
 const isConnected = ref(false)
+const messages = ref([])
 let websocket = null
+
+const currentUserId = 'user1'
 
 onMounted(() => {
   connectWebSocket()
@@ -18,7 +22,7 @@ onUnmounted(() => {
 })
 
 function connectWebSocket() {
-  websocket = new WebSocket('ws://localhost:8000/ws/user1')
+  websocket = new WebSocket(`ws://localhost:8000/ws/${currentUserId}`)
 
   websocket.onopen = () => {
     isConnected.value = true
@@ -27,8 +31,13 @@ function connectWebSocket() {
 
   websocket.onmessage = (event) => {
     const data = JSON.parse(event.data)
+
     if (data.type === 'button_state') {
       isButtonEnabled.value = data.enabled
+    } else if (data.type === 'chat_history') {
+      messages.value = data.messages
+    } else if (data.type === 'chat_message') {
+      messages.value.push(data.message)
     }
   }
 
@@ -50,6 +59,15 @@ function handleButtonClick() {
   }
 }
 
+function handleSendMessage(messageText) {
+  if (websocket && isConnected.value) {
+    websocket.send(JSON.stringify({
+      action: 'send_message',
+      message: messageText
+    }))
+  }
+}
+
 function goBack() {
   router.push('/')
 }
@@ -67,39 +85,52 @@ function goBack() {
       </div>
     </div>
 
-    <div class="content-box">
-      <div class="user-badge">
-        <div class="badge-icon">👤</div>
-        <h1>Utilisateur 1</h1>
+    <div class="main-content">
+      <!-- Section Bouton -->
+      <div class="button-section">
+        <div class="user-badge">
+          <div class="badge-icon">👤</div>
+          <h1>Utilisateur 1</h1>
+        </div>
+
+        <div class="state-indicator" :class="{ active: isButtonEnabled }">
+          <div class="state-icon">
+            {{ isButtonEnabled ? '🔓' : '🔒' }}
+          </div>
+          <div class="state-text">
+            {{ isButtonEnabled ? 'Bouton Activé' : 'Bouton Désactivé' }}
+          </div>
+        </div>
+
+        <button
+          @click="handleButtonClick"
+          :disabled="!isButtonEnabled"
+          class="action-button"
+          :class="{ enabled: isButtonEnabled }"
+        >
+          <span class="button-text">
+            {{ isButtonEnabled ? 'Activer User 2' : 'En attente...' }}
+          </span>
+        </button>
+
+        <div class="info-message">
+          <p v-if="isButtonEnabled">
+            ✨ Cliquez sur le bouton pour activer l'Utilisateur 2
+          </p>
+          <p v-else>
+            ⏳ Attendez que l'Utilisateur 2 vous active
+          </p>
+        </div>
       </div>
 
-      <div class="state-indicator" :class="{ active: isButtonEnabled }">
-        <div class="state-icon">
-          {{ isButtonEnabled ? '🔓' : '🔒' }}
-        </div>
-        <div class="state-text">
-          {{ isButtonEnabled ? 'Bouton Activé' : 'Bouton Désactivé' }}
-        </div>
-      </div>
-
-      <button
-        @click="handleButtonClick"
-        :disabled="!isButtonEnabled"
-        class="action-button"
-        :class="{ enabled: isButtonEnabled }"
-      >
-        <span class="button-text">
-          {{ isButtonEnabled ? 'Activer User 2' : 'En attente...' }}
-        </span>
-      </button>
-
-      <div class="info-message">
-        <p v-if="isButtonEnabled">
-          ✨ Cliquez sur le bouton pour activer l'Utilisateur 2
-        </p>
-        <p v-else>
-          ⏳ Attendez que l'Utilisateur 2 vous active
-        </p>
+      <!-- Section Chat -->
+      <div class="chat-section">
+        <ChatBox
+          :messages="messages"
+          :current-user-id="currentUserId"
+          :disabled="!isConnected"
+          @send-message="handleSendMessage"
+        />
       </div>
     </div>
   </div>
@@ -120,6 +151,9 @@ function goBack() {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .back-button {
@@ -164,12 +198,25 @@ function goBack() {
   box-shadow: 0 0 10px #22c55e;
 }
 
-.content-box {
-  max-width: 500px;
+.main-content {
+  max-width: 1200px;
   margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+@media (max-width: 968px) {
+  .main-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+.button-section,
+.chat-section {
   background: white;
   border-radius: 2rem;
-  padding: 3rem;
+  padding: 2rem;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
@@ -179,22 +226,22 @@ function goBack() {
 }
 
 .badge-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
 }
 
 .user-badge h1 {
   color: #4f46e5;
-  font-size: 2rem;
+  font-size: 1.75rem;
   margin: 0;
 }
 
 .state-indicator {
-  padding: 1.5rem;
+  padding: 1.25rem;
   border-radius: 1rem;
   background: #fee;
   border: 3px solid #fcc;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   text-align: center;
   transition: all 0.3s;
 }
@@ -205,12 +252,12 @@ function goBack() {
 }
 
 .state-icon {
-  font-size: 3rem;
+  font-size: 2.5rem;
   margin-bottom: 0.5rem;
 }
 
 .state-text {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 700;
   color: #c00;
 }
@@ -221,8 +268,8 @@ function goBack() {
 
 .action-button {
   width: 100%;
-  padding: 1.5rem;
-  font-size: 1.25rem;
+  padding: 1.25rem;
+  font-size: 1.125rem;
   font-weight: bold;
   border: none;
   border-radius: 1rem;
@@ -230,7 +277,7 @@ function goBack() {
   background: #d1d5db;
   color: #6b7280;
   transition: all 0.3s;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .action-button.enabled {
@@ -242,10 +289,6 @@ function goBack() {
 .action-button.enabled:hover {
   transform: translateY(-3px);
   box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
-}
-
-.action-button.enabled:active {
-  transform: translateY(-1px);
 }
 
 .info-message {
