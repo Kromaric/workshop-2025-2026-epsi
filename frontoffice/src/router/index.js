@@ -1,15 +1,13 @@
-import { createRouter, createWebHistory } from 'vue-router';
-import PageA from '../PageA.vue';
-import PageB from '../PageB.vue';
+import { createRouter, createWebHistory } from "vue-router";
+import GameView from "../views/GameView.vue";
+import TeamDashboard from "../components/TeamDashboard.vue";
 
 const routes = [
-  { path: '/page-a', component: PageA },
-  { path: '/page-b', component: PageB }
+  { path: "/", component: GameView },
+  { path: "/team/:id", component: TeamDashboard },
 ];
 
-const router = createRouter({
+export default createRouter({
   history: createWebHistory(),
-  routes
+  routes,
 });
-
-export default router;
