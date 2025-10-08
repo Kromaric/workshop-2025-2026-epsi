@@ -1,36 +1,23 @@
 <script setup>
-import ButtonInteraction from './components/ButtonInteraction.vue'
+// Pas besoin de code ici pour le moment
 </script>
 
 <template>
-  <div class="app-container">
-    <h1>Interaction entre utilisateurs</h1>
-
-    <div class="users-grid">
-      <ButtonInteraction userId="user1" />
-      <ButtonInteraction userId="user2" />
-    </div>
-  </div>
+  <router-view />
 </template>
 
 <style>
-.app-container {
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+#app {
   min-height: 100vh;
-  padding: 2rem;
-  background: linear-gradient(to bottom right, #eff6ff, #e0e7ff);
-}
-
-.app-container h1 {
-  text-align: center;
-  color: #1e40af;
-  margin-bottom: 2rem;
-}
-
-.users-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
 }
 </style>
