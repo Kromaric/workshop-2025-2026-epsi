@@ -1,9 +1,13 @@
 <script setup>
-// Pas besoin de code ici pour le moment
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
 </script>
 
 <template>
-  <router-view />
+  <div id="app">
+    <router-view />
+  </div>
 </template>
 
 <style>

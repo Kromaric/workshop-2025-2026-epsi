@@ -2,14 +2,22 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import ChatBox from '../components/ChatBox.vue'
+import ProgressPanel from '../components/ProgressPanel.vue'
 
 const router = useRouter()
 const isConnected = ref(false)
 const messages = ref([])
 const isButtonEnabled = ref(false)
+
+// Progression
+const teamScore = ref(0)
+const progress = ref([])
+
 let websocket = null
 
-const currentUserId = 'user2'
+const currentUserId = 'team2'
+const teamId = localStorage.getItem('teamId') || 'escape_team'
+const teamName = localStorage.getItem('teamName') || 'Escape Team'
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
 
 onMounted(() => {
@@ -23,14 +31,14 @@ onUnmounted(() => {
 })
 
 function connectWebSocket() {
-  const wsUrl = `${WS_URL}/ws/team1/${currentUserId}`
+  const wsUrl = `${WS_URL}/ws/${teamId}/${currentUserId}`
   console.log('🔌 Connexion WebSocket à:', wsUrl)
 
   websocket = new WebSocket(wsUrl)
 
   websocket.onopen = () => {
     isConnected.value = true
-    console.log('✅ User2 connecté à', wsUrl)
+    console.log('✅ Team2 connecté en tant que', currentUserId, 'équipe', teamId)
   }
 
   websocket.onmessage = (event) => {
@@ -52,6 +60,11 @@ function connectWebSocket() {
         if (data.message && data.message.text) {
           messages.value = [...messages.value, data.message]
         }
+      } else if (data.type === 'progress') {
+        // Mise à jour de la progression
+        console.log('📊 Progression:', data.data)
+        teamScore.value = data.data.team_score || 0
+        progress.value = data.data.puzzles || []
       }
     } catch (error) {
       console.error('❌ Erreur parsing:', error)
@@ -60,7 +73,7 @@ function connectWebSocket() {
 
   websocket.onclose = () => {
     isConnected.value = false
-    console.log('❌ User2 déconnecté')
+    console.log('❌ Team2 déconnecté')
     setTimeout(connectWebSocket, 3000)
   }
 
@@ -91,6 +104,11 @@ function handleSendMessage(messageText) {
 }
 
 function goBack() {
+  // Déconnecter avant de retourner
+  if (websocket) {
+    websocket.close()
+    websocket = null
+  }
   router.push('/')
 }
 </script>
@@ -102,9 +120,13 @@ function goBack() {
       <button @click="goBack" class="back-button">
         ← Retour
       </button>
+      <div class="team-info">
+        <span class="team-icon">🏆</span>
+        <span>{{ teamName }}</span>
+      </div>
       <div class="user-badge">
-        <span class="badge-icon">👤</span>
-        <span>Utilisateur 2</span>
+        <span class="badge-icon">👥</span>
+        <span>Équipe 2</span>
       </div>
       <div class="connection-status">
         <span class="status-dot" :class="{ connected: isConnected }"></span>
@@ -114,12 +136,27 @@ function goBack() {
 
     <!-- Contenu principal -->
     <div class="main-content">
-      <!-- Section Bouton -->
+      <!-- Colonne 1 : Score + Chat (dans la même colonne) -->
+      <div class="score-chat-column">
+        <ProgressPanel
+          :team-score="teamScore"
+          :progress="progress"
+        />
+        
+        <ChatBox
+          :messages="messages"
+          :current-user-id="currentUserId"
+          :disabled="!isConnected"
+          @send-message="handleSendMessage"
+        />
+      </div>
+
+      <!-- Colonne 2 : Section Bouton -->
       <div class="button-section">
         <div class="content-box">
           <div class="user-badge-large">
-            <div class="badge-icon-large">👤</div>
-            <h1>Utilisateur 2</h1>
+            <div class="badge-icon-large">👥</div>
+            <h1>Équipe 2</h1>
           </div>
 
           <div class="state-indicator" :class="{ active: isButtonEnabled }">
@@ -138,29 +175,19 @@ function goBack() {
             :class="{ enabled: isButtonEnabled }"
           >
             <span class="button-text">
-              {{ isButtonEnabled ? 'Activer User 1' : 'En attente...' }}
+              {{ isButtonEnabled ? 'Activer Team 1' : 'En attente...' }}
             </span>
           </button>
 
           <div class="info-message">
             <p v-if="isButtonEnabled">
-              ✨ Cliquez sur le bouton pour activer l'Utilisateur 1
+              ✨ Cliquez sur le bouton pour activer l'Équipe 1
             </p>
             <p v-else>
-              ⏳ Attendez que l'Utilisateur 1 vous active
+              ⏳ Attendez que l'Équipe 1 vous active
             </p>
           </div>
         </div>
-      </div>
-
-      <!-- Section Chat -->
-      <div class="chat-section">
-        <ChatBox
-          :messages="messages"
-          :current-user-id="currentUserId"
-          :disabled="!isConnected"
-          @send-message="handleSendMessage"
-        />
       </div>
     </div>
   </div>
@@ -203,6 +230,22 @@ function goBack() {
 .back-button:hover {
   background: rgba(255, 255, 255, 0.3);
   transform: translateX(-5px);
+}
+
+.team-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+  color: white;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+}
+
+.team-icon {
+  font-size: 1.25rem;
 }
 
 .user-badge {
@@ -254,8 +297,14 @@ function goBack() {
   gap: 2rem;
 }
 
-.button-section,
-.chat-section {
+/* Colonne Score + Chat */
+.score-chat-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.button-section {
   background: transparent;
 }
 
@@ -367,14 +416,11 @@ function goBack() {
   }
 
   .back-button,
+  .team-info,
   .user-badge,
   .connection-status {
     padding: 0.625rem 1.25rem;
     font-size: 0.95rem;
-  }
-
-  .badge-icon {
-    font-size: 1.125rem;
   }
 
   .main-content {
@@ -384,204 +430,6 @@ function goBack() {
 
   .content-box {
     padding: 2rem 1.5rem;
-  }
-
-  .user-badge-large h1 {
-    font-size: 1.75rem;
-  }
-
-  .badge-icon-large {
-    font-size: 3rem;
-  }
-
-  .state-indicator {
-    padding: 1.25rem;
-  }
-
-  .state-icon {
-    font-size: 2.5rem;
-  }
-
-  .state-text {
-    font-size: 1.125rem;
-  }
-
-  .action-button {
-    padding: 1.25rem;
-    font-size: 1.125rem;
-  }
-
-  .info-message p {
-    font-size: 0.875rem;
-  }
-}
-
-/* Responsive Petits écrans (< 400px) */
-@media (max-width: 400px) {
-  .page-container {
-    padding: 0.75rem;
-  }
-
-  .top-bar {
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .back-button,
-  .user-badge,
-  .connection-status {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-  }
-
-  .content-box {
-    padding: 1.5rem 1.25rem;
-    border-radius: 1.5rem;
-  }
-
-  .user-badge-large {
-    margin-bottom: 1.5rem;
-  }
-
-  .user-badge-large h1 {
-    font-size: 1.5rem;
-  }
-
-  .badge-icon-large {
-    font-size: 2.5rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .state-indicator {
-    padding: 1rem;
-    border-width: 2px;
-    margin-bottom: 1.5rem;
-  }
-
-  .state-icon {
-    font-size: 2.25rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .state-text {
-    font-size: 1rem;
-  }
-
-  .action-button {
-    padding: 1.125rem;
-    font-size: 1rem;
-    margin-bottom: 1.25rem;
-  }
-
-  .info-message {
-    padding: 0.875rem;
-  }
-
-  .info-message p {
-    font-size: 0.8125rem;
-  }
-}
-
-/* Responsive Tablette (641px - 968px) */
-@media (min-width: 641px) and (max-width: 968px) {
-  .main-content {
-    gap: 1.75rem;
-  }
-
-  .content-box {
-    padding: 2.25rem;
-  }
-
-  .user-badge-large h1 {
-    font-size: 1.875rem;
-  }
-
-  .badge-icon-large {
-    font-size: 3.25rem;
-  }
-}
-
-/* Responsive Paysage mobile */
-@media (max-width: 900px) and (orientation: landscape) {
-  .page-container {
-    padding: 1rem;
-  }
-
-  .top-bar {
-    margin-bottom: 1rem;
-  }
-
-  .main-content {
-    gap: 1.25rem;
-  }
-
-  .content-box {
-    padding: 1.5rem;
-  }
-
-  .user-badge-large {
-    margin-bottom: 1.25rem;
-  }
-
-  .user-badge-large h1 {
-    font-size: 1.5rem;
-  }
-
-  .badge-icon-large {
-    font-size: 2.5rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .state-indicator {
-    padding: 1rem;
-    margin-bottom: 1.25rem;
-  }
-
-  .state-icon {
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .state-text {
-    font-size: 1.125rem;
-  }
-
-  .action-button {
-    padding: 1.125rem;
-    font-size: 1.125rem;
-    margin-bottom: 1rem;
-  }
-
-  .info-message {
-    padding: 0.875rem;
-  }
-}
-
-/* Responsive Desktop (> 1024px) */
-@media (min-width: 1025px) {
-  .back-button:active {
-    transform: translateX(-3px);
-  }
-
-  .action-button.enabled:active {
-    transform: translateY(0);
-  }
-}
-
-/* Safe area pour iPhone X et plus */
-@supports (padding: max(0px)) {
-  .page-container {
-    padding-left: max(1.5rem, env(safe-area-inset-left));
-    padding-right: max(1.5rem, env(safe-area-inset-right));
-    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
-  }
-}
-
-/* Touch optimization pour mobile */
-@media (hover: none) and (pointer: coarse) {
-  .back-button,
-  .action-button.enabled {
-    min-height: 44px; /* Zone de touch minimum recommandée */
   }
 }
 </style>

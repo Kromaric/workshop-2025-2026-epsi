@@ -1,9 +1,10 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import EnigmeChardin from '../components/EnigmeChardin.vue'
 import SuccessPopup from '../components/SuccessPopup.vue'
 import ChatBox from '../components/ChatBox.vue'
+import ProgressPanel from '../components/ProgressPanel.vue'
 
 const router = useRouter()
 const isConnected = ref(false)
@@ -15,9 +16,15 @@ const enigmaSolved = ref(false)
 const messages = ref([])
 const isButtonEnabled = ref(false)
 
+// Progression
+const teamScore = ref(0)
+const progress = ref([])
+
 let websocket = null
 
-const currentUserId = 'user1'
+const currentUserId = 'team1'
+const teamId = localStorage.getItem('teamId') || 'escape_team'
+const teamName = localStorage.getItem('teamName') || 'Escape Team'
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
 
 onMounted(() => {
@@ -31,11 +38,12 @@ onUnmounted(() => {
 })
 
 function connectWebSocket() {
-  const wsUrl = `${WS_URL}/ws/team1/${currentUserId}`
+  const wsUrl = `${WS_URL}/ws/${teamId}/${currentUserId}`
   websocket = new WebSocket(wsUrl)
 
   websocket.onopen = () => {
     isConnected.value = true
+    console.log('✅ Connecté en tant que', currentUserId, 'équipe', teamId)
   }
 
   websocket.onmessage = (event) => {
@@ -64,6 +72,10 @@ function connectWebSocket() {
       if (data.message && data.message.text) {
         messages.value = [...messages.value, data.message]
       }
+    } else if (data.type === 'progress') {
+      // Mise à jour de la progression
+      teamScore.value = data.data.team_score || 0
+      progress.value = data.data.puzzles || []
     }
   }
 
@@ -105,6 +117,11 @@ function handleContinue() {
 }
 
 function goBack() {
+  // Déconnecter avant de retourner
+  if (websocket) {
+    websocket.close()
+    websocket = null
+  }
   router.push('/')
 }
 </script>
@@ -114,9 +131,13 @@ function goBack() {
     <!-- Barre du haut -->
     <div class="top-bar">
       <button @click="goBack" class="back-btn">← Retour</button>
+      <div class="team-info">
+        <span class="team-icon">🏆</span>
+        <span>{{ teamName }}</span>
+      </div>
       <div class="user-badge">
-        <span class="badge-icon">👤</span>
-        <span>Utilisateur 1</span>
+        <span class="badge-icon">👥</span>
+        <span>Équipe 1</span>
       </div>
       <div class="status" :class="{ connected: isConnected }">
         <span class="dot"></span>
@@ -140,55 +161,76 @@ function goBack() {
 
     <!-- Contenu principal -->
     <div v-if="!enigmaSolved" class="content">
-      <EnigmeChardin
-        :player-id="currentUserId"
-        @submit-answer="handleChardinSubmit"
-      />
+      <!-- Colonne 1 : Énigme Chardin -->
+      <div class="enigme-section">
+        <EnigmeChardin
+          :player-id="currentUserId"
+          @submit-answer="handleChardinSubmit"
+        />
+      </div>
+      
+      <!-- Colonne 2 : Score + Chat (dans la même colonne) -->
+      <div class="score-chat-column">
+        <ProgressPanel
+          :team-score="teamScore"
+          :progress="progress"
+        />
+        
+        <ChatBox
+          :messages="messages"
+          :current-user-id="currentUserId"
+          :disabled="!isConnected"
+          @send-message="handleSendMessage"
+        />
+      </div>
     </div>
 
     <!-- Interface d'interaction après résolution -->
     <div v-else class="interaction-content">
-      <div class="main-grid">
-        <!-- Section Bouton -->
-        <div class="button-section">
-          <div class="section-card">
-            <h2>🔘 Interaction</h2>
+      <!-- Colonne 1 : Score + Chat (dans la même colonne) -->
+      <div class="score-chat-column">
+        <ProgressPanel
+          :team-score="teamScore"
+          :progress="progress"
+        />
+        
+        <ChatBox
+          :messages="messages"
+          :current-user-id="currentUserId"
+          :disabled="!isConnected"
+          @send-message="handleSendMessage"
+        />
+      </div>
 
-            <div class="state-indicator" :class="{ active: isButtonEnabled }">
-              <div class="state-icon">
-                {{ isButtonEnabled ? '🔓' : '🔒' }}
-              </div>
-              <div class="state-text">
-                {{ isButtonEnabled ? 'Bouton Activé' : 'Bouton Désactivé' }}
-              </div>
+      <!-- Colonne 2 : Section Bouton -->
+      <div class="button-section">
+        <div class="section-card">
+          <h2>🔘 Interaction</h2>
+
+          <div class="state-indicator" :class="{ active: isButtonEnabled }">
+            <div class="state-icon">
+              {{ isButtonEnabled ? '🔓' : '🔒' }}
             </div>
-
-            <button
-              @click="handleButtonClick"
-              :disabled="!isButtonEnabled"
-              class="action-button"
-              :class="{ enabled: isButtonEnabled }"
-            >
-              {{ isButtonEnabled ? 'Activer User 2' : 'En attente...' }}
-            </button>
-
-            <p class="info-text">
-              {{ isButtonEnabled
-                ? '✨ Cliquez pour activer le bouton de l\'Utilisateur 2'
-                : '⏳ Attendez que l\'Utilisateur 2 vous active'
-              }}
-            </p>
+            <div class="state-text">
+              {{ isButtonEnabled ? 'Bouton Activé' : 'Bouton Désactivé' }}
+            </div>
           </div>
-        </div>
 
-        <!-- Section Chat -->
-        <div class="chat-section">
-          <ChatBox
-            :messages="messages"
-            :current-user-id="currentUserId"
-            :disabled="!isConnected"
-            @send-message="handleSendMessage"
-          />
+          <button
+            @click="handleButtonClick"
+            :disabled="!isButtonEnabled"
+            class="action-button"
+            :class="{ enabled: isButtonEnabled }"
+          >
+            {{ isButtonEnabled ? 'Activer Team 2' : 'En attente...' }}
+          </button>
+
+          <p class="info-text">
+            {{ isButtonEnabled
+              ? '✨ Cliquez pour activer le bouton de l\'Équipe 2'
+              : '⏳ Attendez que l\'Équipe 2 vous active'
+            }}
+          </p>
         </div>
       </div>
     </div>
@@ -226,6 +268,22 @@ function goBack() {
 
 .back-btn:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+.team-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+  color: white;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+}
+
+.team-icon {
+  font-size: 1.25rem;
 }
 
 .user-badge {
@@ -304,18 +362,31 @@ function goBack() {
   transform: translateX(-50%) translateY(-20px);
 }
 
+/* Layout Desktop - 2 colonnes */
 .content {
-  max-width: 600px;
+  max-width: 1400px;
   margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 2rem;
 }
 
-/* Interface d'interaction */
+.enigme-section {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Colonne Score + Chat */
+.score-chat-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Interface d'interaction - 2 colonnes */
 .interaction-content {
   max-width: 1400px;
   margin: 0 auto;
-}
-
-.main-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
@@ -419,143 +490,21 @@ function goBack() {
   }
 
   .back-btn,
+  .team-info,
   .user-badge,
   .status {
     padding: 0.625rem 1.25rem;
     font-size: 0.95rem;
   }
 
-  .badge-icon {
-    font-size: 1.125rem;
-  }
-
-  .main-grid {
+  .content,
+  .interaction-content {
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
 
   .section-card {
     padding: 2rem 1.5rem;
-  }
-
-  .section-card h2 {
-    font-size: 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .state-indicator {
-    padding: 1.25rem;
-  }
-
-  .state-icon {
-    font-size: 2.5rem;
-  }
-
-  .state-text {
-    font-size: 1.125rem;
-  }
-
-  .action-button {
-    padding: 1.25rem;
-    font-size: 1.125rem;
-  }
-
-  .info-text {
-    font-size: 0.875rem;
-  }
-
-  .notification {
-    font-size: 1rem;
-    padding: 1rem 1.5rem;
-  }
-}
-
-/* Responsive Petits écrans (< 400px) */
-@media (max-width: 400px) {
-  .page-container {
-    padding: 0.75rem;
-  }
-
-  .top-bar {
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .back-btn,
-  .user-badge,
-  .status {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-  }
-
-  .section-card {
-    padding: 1.5rem 1.25rem;
-    border-radius: 1.5rem;
-  }
-
-  .section-card h2 {
-    font-size: 1.375rem;
-  }
-
-  .state-indicator {
-    padding: 1rem;
-    border-width: 2px;
-  }
-
-  .state-icon {
-    font-size: 2.25rem;
-  }
-
-  .state-text {
-    font-size: 1rem;
-  }
-
-  .action-button {
-    padding: 1.125rem;
-    font-size: 1rem;
-  }
-}
-
-/* Responsive Tablette (641px - 968px) */
-@media (min-width: 641px) and (max-width: 968px) {
-  .main-grid {
-    gap: 1.75rem;
-  }
-
-  .section-card {
-    padding: 2.25rem;
-  }
-}
-
-/* Responsive Paysage mobile */
-@media (max-width: 900px) and (orientation: landscape) {
-  .page-container {
-    padding: 1rem;
-  }
-
-  .top-bar {
-    margin-bottom: 1rem;
-  }
-
-  .main-grid {
-    gap: 1.25rem;
-  }
-
-  .section-card {
-    padding: 1.5rem;
-  }
-
-  .section-card h2 {
-    margin-bottom: 1.25rem;
-  }
-
-  .state-indicator {
-    padding: 1rem;
-    margin-bottom: 1.25rem;
-  }
-
-  .action-button {
-    margin-bottom: 1rem;
   }
 }
 </style>

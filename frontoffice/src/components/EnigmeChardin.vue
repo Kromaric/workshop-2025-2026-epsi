@@ -4,11 +4,7 @@ import { ref, computed } from 'vue'
 const props = defineProps({
   playerId: {
     type: String,
-    required: true
-  },
-  onSuccess: {
-    type: Function,
-    default: null
+    default: 'team'
   }
 })
 
@@ -16,10 +12,6 @@ const emit = defineEmits(['submit-answer'])
 
 const userCode = ref('')
 const isSubmitting = ref(false)
-
-const canSolve = computed(() => {
-  return props.playerId === 'user1'
-})
 
 const isCodeValid = computed(() => {
   return /^\d{4}$/.test(userCode.value)
@@ -30,7 +22,7 @@ function handleInput(event) {
 }
 
 function submitCode() {
-  if (!isCodeValid.value || !canSolve.value || isSubmitting.value) return
+  if (!isCodeValid.value || isSubmitting.value) return
 
   isSubmitting.value = true
 
@@ -86,11 +78,6 @@ function handleKeyPress(event) {
       <p class="hint">💡 Chaque nombre forme un chiffre du code à 4 chiffres</p>
     </div>
 
-    <!-- Restriction User1 -->
-    <div v-if="!canSolve" class="restriction">
-      🔒 Cette énigme est réservée à l'<strong>Utilisateur 1</strong>
-    </div>
-
     <!-- Saisie du code -->
     <div class="code-section">
       <label for="code" class="code-label">Entrez le code :</label>
@@ -106,7 +93,7 @@ function handleKeyPress(event) {
           maxlength="4"
           placeholder="____"
           class="code-input"
-          :disabled="!canSolve || isSubmitting"
+          :disabled="isSubmitting"
           autofocus
         />
 
@@ -124,7 +111,7 @@ function handleKeyPress(event) {
 
       <button
         @click="submitCode"
-        :disabled="!isCodeValid || !canSolve || isSubmitting"
+        :disabled="!isCodeValid || isSubmitting"
         class="submit-btn"
         :class="{ ready: isCodeValid && !isSubmitting }"
       >
@@ -141,7 +128,7 @@ function handleKeyPress(event) {
   background: white;
   border-radius: 1.5rem;
   padding: 2.5rem;
-  max-width: 600px;
+  max-width: 800px;
   margin: 0 auto;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
 }
@@ -227,18 +214,6 @@ function handleKeyPress(event) {
   margin: 0;
   color: #78350f;
   font-weight: 600;
-}
-
-/* Restriction */
-.restriction {
-  background: #fee;
-  border: 2px solid #fcc;
-  padding: 1rem;
-  border-radius: 0.75rem;
-  color: #c00;
-  font-weight: 600;
-  text-align: center;
-  margin-bottom: 2rem;
 }
 
 /* Code */
@@ -367,163 +342,6 @@ function handleKeyPress(event) {
     width: 50px;
     height: 70px;
     font-size: 2rem;
-  }
-}
-
-/* Responsive Mobile */
-@media (max-width: 640px) {
-  .enigma-container {
-    padding: 1.5rem 1rem;
-    border-radius: 1.25rem;
-  }
-
-  .enigma-header h1 {
-    font-size: 1.5rem;
-  }
-
-  .artist {
-    font-size: 0.9rem;
-  }
-
-  .instructions {
-    padding: 1.5rem;
-  }
-
-  .main-instruction {
-    font-size: 1rem;
-  }
-
-  .instruction-item {
-    padding: 0.875rem;
-    gap: 0.75rem;
-  }
-
-  .number {
-    width: 28px;
-    height: 28px;
-    font-size: 0.8125rem;
-  }
-
-  .instruction-item span:last-child {
-    font-size: 0.9rem;
-  }
-
-  .hint {
-    padding: 0.875rem;
-    font-size: 0.8125rem;
-  }
-
-  .code-label {
-    font-size: 1.125rem;
-  }
-
-  .code-input {
-    padding: 1.25rem;
-    font-size: 2rem;
-    letter-spacing: 1rem;
-  }
-
-  .code-display {
-    gap: 0.75rem;
-  }
-
-  .digit {
-    width: 50px;
-    height: 70px;
-    font-size: 2rem;
-    border-width: 2px;
-  }
-
-  .submit-btn {
-    padding: 1.125rem;
-    font-size: 1.125rem;
-  }
-}
-
-/* Responsive Petits écrans (< 400px) */
-@media (max-width: 400px) {
-  .enigma-container {
-    padding: 1.25rem 0.875rem;
-  }
-
-  .enigma-header h1 {
-    font-size: 1.375rem;
-  }
-
-  .instructions {
-    padding: 1.25rem;
-  }
-
-  .main-instruction {
-    font-size: 0.95rem;
-  }
-
-  .instruction-item {
-    padding: 0.75rem;
-  }
-
-  .instruction-item span:last-child {
-    font-size: 0.875rem;
-  }
-
-  .code-input {
-    font-size: 1.75rem;
-    padding: 1rem;
-    letter-spacing: 0.75rem;
-  }
-
-  .code-display {
-    gap: 0.5rem;
-  }
-
-  .digit {
-    width: 45px;
-    height: 60px;
-    font-size: 1.75rem;
-  }
-
-  .submit-btn {
-    padding: 1rem;
-    font-size: 1rem;
-  }
-}
-
-/* Responsive Tablette (641px - 1024px) */
-@media (min-width: 641px) and (max-width: 1024px) {
-  .enigma-container {
-    max-width: 550px;
-    padding: 2.25rem;
-  }
-
-  .code-display {
-    gap: 1.25rem;
-  }
-
-  .digit {
-    width: 65px;
-    height: 85px;
-  }
-}
-
-/* Responsive Paysage mobile */
-@media (max-width: 900px) and (orientation: landscape) {
-  .enigma-header {
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-  }
-
-  .instructions {
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .instruction-list {
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-  }
-
-  .code-input-wrapper {
-    margin-bottom: 1rem;
   }
 }
 </style>
