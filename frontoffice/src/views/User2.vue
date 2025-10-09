@@ -2,11 +2,21 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import ChatBox from '../components/ChatBox.vue'
+import HieroglyphKeyboard from '../components/HieroglyphKeyboard.vue'
 
 const router = useRouter()
 const isConnected = ref(false)
 const messages = ref([])
 const isButtonEnabled = ref(false)
+
+// Sekhmet
+const sekhmetDivinities = ref([])
+const showSekhmetSelection = ref(false)
+const showSekhmetSuccess = ref(false)
+const sekhmetResultMessage = ref('')
+const showError = ref(false)
+const errorMessage = ref('')
+
 let websocket = null
 
 const currentUserId = 'user2'
@@ -24,54 +34,48 @@ onUnmounted(() => {
 
 function connectWebSocket() {
   const wsUrl = `${WS_URL}/ws/team1/${currentUserId}`
-  console.log('🔌 Connexion WebSocket à:', wsUrl)
-
   websocket = new WebSocket(wsUrl)
 
   websocket.onopen = () => {
     isConnected.value = true
-    console.log('✅ User2 connecté à', wsUrl)
   }
 
   websocket.onmessage = (event) => {
-    console.log('📨 Message reçu:', event.data)
+    const data = JSON.parse(event.data)
 
-    try {
-      const data = JSON.parse(event.data)
-
-      if (data.type === 'button_state') {
-        console.log('🔘 État bouton:', data.enabled)
-        isButtonEnabled.value = data.enabled
-
-      } else if (data.type === 'chat_history') {
-        console.log('📜 Historique chat:', data.messages)
-        messages.value = data.messages || []
-
-      } else if (data.type === 'chat_message') {
-        console.log('💬 Nouveau message:', data.message)
-        if (data.message && data.message.text) {
-          messages.value = [...messages.value, data.message]
-        }
+    if (data.type === 'button_state') {
+      isButtonEnabled.value = data.enabled
+    } else if (data.type === 'chat_history') {
+      messages.value = data.messages || []
+    } else if (data.type === 'chat_message') {
+      if (data.message && data.message.text) {
+        messages.value = [...messages.value, data.message]
       }
-    } catch (error) {
-      console.error('❌ Erreur parsing:', error)
+    } else if (data.type === 'sekhmet_selection') {
+      sekhmetDivinities.value = data.divinities
+      showSekhmetSelection.value = true
+    } else if (data.type === 'sekhmet_result') {
+      const result = data.result
+      if (result.success) {
+        showSekhmetSuccess.value = true
+        sekhmetResultMessage.value = result.message
+      } else {
+        showError.value = true
+        errorMessage.value = result.message
+        setTimeout(() => {
+          showError.value = false
+        }, 3000)
+      }
     }
   }
 
   websocket.onclose = () => {
     isConnected.value = false
-    console.log('❌ User2 déconnecté')
     setTimeout(connectWebSocket, 3000)
-  }
-
-  websocket.onerror = (error) => {
-    console.error('❌ WebSocket error:', error)
   }
 }
 
 function handleButtonClick() {
-  console.log('🖱️ Clic sur le bouton')
-
   if (isButtonEnabled.value && websocket) {
     websocket.send(JSON.stringify({
       action: 'button_click'
@@ -80,8 +84,6 @@ function handleButtonClick() {
 }
 
 function handleSendMessage(messageText) {
-  console.log('📤 Envoi du message:', messageText)
-
   if (websocket && isConnected.value) {
     websocket.send(JSON.stringify({
       action: 'send_message',
@@ -90,10 +92,24 @@ function handleSendMessage(messageText) {
   }
 }
 
+function handleSekhmetValidate(data) {
+  if (websocket && isConnected.value) {
+    websocket.send(JSON.stringify({
+      action: 'validate_sekhmet',
+      hieroglyph_code: data.hieroglyph_code
+    }))
+  }
+}
+
+function closeSekhmetSuccess() {
+  showSekhmetSuccess.value = false
+}
+
 function goBack() {
   router.push('/')
 }
 </script>
+
 
 <template>
   <div class="page-container user2-theme">
@@ -112,10 +128,25 @@ function goBack() {
       </div>
     </div>
 
+    <!-- Notification d'erreur -->
+    <transition name="slide-down">
+      <div v-if="showError" class="notification error">
+        {{ errorMessage }}
+      </div>
+    </transition>
+
+    <!-- Notification succès Sekhmet -->
+    <transition name="slide-down">
+      <div v-if="showSekhmetSuccess" class="notification success">
+        <span>{{ sekhmetResultMessage }}</span>
+        <button @click="closeSekhmetSuccess" class="close-notif">×</button>
+      </div>
+    </transition>
+
     <!-- Contenu principal -->
     <div class="main-content">
-      <!-- Section Bouton -->
-      <div class="button-section">
+      <!-- Avant l'énigme Sekhmet : interface de base -->
+      <div v-if="!showSekhmetSelection" class="waiting-section">
         <div class="content-box">
           <div class="user-badge-large">
             <div class="badge-icon-large">👤</div>
@@ -147,20 +178,38 @@ function goBack() {
               ✨ Cliquez sur le bouton pour activer l'Utilisateur 1
             </p>
             <p v-else>
-              ⏳ Attendez que l'Utilisateur 1 vous active
+              ⏳ En attente que User 1 résolve l'énigme de Chardin...
             </p>
           </div>
         </div>
+
+        <div class="chat-section">
+          <ChatBox
+            :messages="messages"
+            :current-user-id="currentUserId"
+            :disabled="!isConnected"
+            @send-message="handleSendMessage"
+          />
+        </div>
       </div>
 
-      <!-- Section Chat -->
-      <div class="chat-section">
-        <ChatBox
-          :messages="messages"
-          :current-user-id="currentUserId"
-          :disabled="!isConnected"
-          @send-message="handleSendMessage"
-        />
+      <!-- Après Chardin : énigme Sekhmet avec clavier hiéroglyphique -->
+      <div v-else class="sekhmet-active">
+        <div class="sekhmet-section">
+          <HieroglyphKeyboard
+            :player-id="currentUserId"
+            @validate-answer="handleSekhmetValidate"
+          />
+        </div>
+
+        <div class="chat-section">
+          <ChatBox
+            :messages="messages"
+            :current-user-id="currentUserId"
+            :disabled="!isConnected"
+            @send-message="handleSendMessage"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -246,17 +295,85 @@ function goBack() {
   box-shadow: 0 0 10px #22c55e;
 }
 
+/* Notifications */
+.notification {
+  position: fixed;
+  top: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1.25rem 2rem;
+  border-radius: 1rem;
+  font-weight: 600;
+  font-size: 1.125rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  max-width: 90%;
+}
+
+.notification.error {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+.notification.success {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.close-notif {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.close-notif:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.4s ease;
+}
+
+.slide-down-enter-from {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
+}
+
+.slide-down-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
+}
+
 .main-content {
   max-width: 1400px;
   margin: 0 auto;
+}
+
+.waiting-section {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
 }
 
-.button-section,
-.chat-section {
-  background: transparent;
+.sekhmet-active {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2rem;
 }
 
 .content-box {
@@ -355,7 +472,7 @@ function goBack() {
   line-height: 1.6;
 }
 
-/* Responsive Mobile */
+/* Responsive */
 @media (max-width: 968px) {
   .page-container {
     padding: 1rem;
@@ -363,7 +480,21 @@ function goBack() {
 
   .top-bar {
     justify-content: center;
-    gap: 0.5rem;
+  }
+
+  .waiting-section,
+  .sekhmet-active {
+    grid-template-columns: 1fr;
+  }
+
+  .content-box {
+    padding: 2rem 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-container {
+    padding: 0.75rem;
   }
 
   .back-button,
@@ -373,215 +504,8 @@ function goBack() {
     font-size: 0.95rem;
   }
 
-  .badge-icon {
-    font-size: 1.125rem;
-  }
-
-  .main-content {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-
-  .content-box {
-    padding: 2rem 1.5rem;
-  }
-
-  .user-badge-large h1 {
-    font-size: 1.75rem;
-  }
-
-  .badge-icon-large {
-    font-size: 3rem;
-  }
-
-  .state-indicator {
-    padding: 1.25rem;
-  }
-
-  .state-icon {
-    font-size: 2.5rem;
-  }
-
-  .state-text {
-    font-size: 1.125rem;
-  }
-
-  .action-button {
-    padding: 1.25rem;
-    font-size: 1.125rem;
-  }
-
-  .info-message p {
-    font-size: 0.875rem;
-  }
-}
-
-/* Responsive Petits écrans (< 400px) */
-@media (max-width: 400px) {
-  .page-container {
-    padding: 0.75rem;
-  }
-
-  .top-bar {
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .back-button,
-  .user-badge,
-  .connection-status {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-  }
-
   .content-box {
     padding: 1.5rem 1.25rem;
-    border-radius: 1.5rem;
-  }
-
-  .user-badge-large {
-    margin-bottom: 1.5rem;
-  }
-
-  .user-badge-large h1 {
-    font-size: 1.5rem;
-  }
-
-  .badge-icon-large {
-    font-size: 2.5rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .state-indicator {
-    padding: 1rem;
-    border-width: 2px;
-    margin-bottom: 1.5rem;
-  }
-
-  .state-icon {
-    font-size: 2.25rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .state-text {
-    font-size: 1rem;
-  }
-
-  .action-button {
-    padding: 1.125rem;
-    font-size: 1rem;
-    margin-bottom: 1.25rem;
-  }
-
-  .info-message {
-    padding: 0.875rem;
-  }
-
-  .info-message p {
-    font-size: 0.8125rem;
-  }
-}
-
-/* Responsive Tablette (641px - 968px) */
-@media (min-width: 641px) and (max-width: 968px) {
-  .main-content {
-    gap: 1.75rem;
-  }
-
-  .content-box {
-    padding: 2.25rem;
-  }
-
-  .user-badge-large h1 {
-    font-size: 1.875rem;
-  }
-
-  .badge-icon-large {
-    font-size: 3.25rem;
-  }
-}
-
-/* Responsive Paysage mobile */
-@media (max-width: 900px) and (orientation: landscape) {
-  .page-container {
-    padding: 1rem;
-  }
-
-  .top-bar {
-    margin-bottom: 1rem;
-  }
-
-  .main-content {
-    gap: 1.25rem;
-  }
-
-  .content-box {
-    padding: 1.5rem;
-  }
-
-  .user-badge-large {
-    margin-bottom: 1.25rem;
-  }
-
-  .user-badge-large h1 {
-    font-size: 1.5rem;
-  }
-
-  .badge-icon-large {
-    font-size: 2.5rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .state-indicator {
-    padding: 1rem;
-    margin-bottom: 1.25rem;
-  }
-
-  .state-icon {
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .state-text {
-    font-size: 1.125rem;
-  }
-
-  .action-button {
-    padding: 1.125rem;
-    font-size: 1.125rem;
-    margin-bottom: 1rem;
-  }
-
-  .info-message {
-    padding: 0.875rem;
-  }
-}
-
-/* Responsive Desktop (> 1024px) */
-@media (min-width: 1025px) {
-  .back-button:active {
-    transform: translateX(-3px);
-  }
-
-  .action-button.enabled:active {
-    transform: translateY(0);
-  }
-}
-
-/* Safe area pour iPhone X et plus */
-@supports (padding: max(0px)) {
-  .page-container {
-    padding-left: max(1.5rem, env(safe-area-inset-left));
-    padding-right: max(1.5rem, env(safe-area-inset-right));
-    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
-  }
-}
-
-/* Touch optimization pour mobile */
-@media (hover: none) and (pointer: coarse) {
-  .back-button,
-  .action-button.enabled {
-    min-height: 44px; /* Zone de touch minimum recommandée */
   }
 }
 </style>

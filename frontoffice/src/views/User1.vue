@@ -1,19 +1,22 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import EnigmeChardin from '../components/EnigmeChardin.vue'
-import SuccessPopup from '../components/SuccessPopup.vue'
 import ChatBox from '../components/ChatBox.vue'
+import EnigmeChardin from '../components/EnigmeChardin.vue'
+import SchemaSekhmet from '../components/SchemaSekhmet.vue'  // ✅ Nouveau composant
+import SuccessPopup from '../components/SuccessPopup.vue'
 
 const router = useRouter()
 const isConnected = ref(false)
-const showSuccess = ref(false)
-const showSuccessPopup = ref(false)
 const showError = ref(false)
+const showSuccessPopup = ref(false)
+const showSekhmetSuccess = ref(false)
 const resultMessage = ref('')
-const enigmaSolved = ref(false)
+const chardinSolved = ref(false)
 const messages = ref([])
-const isButtonEnabled = ref(false)
+
+// Énigmes
+const sekhmetSchemas = ref(null)
 
 let websocket = null
 
@@ -46,18 +49,23 @@ function connectWebSocket() {
       resultMessage.value = result.message
 
       if (result.success) {
-        // Énigme résolue : afficher le popup
-        enigmaSolved.value = true
+        chardinSolved.value = true
         showSuccessPopup.value = true
       } else {
-        // Mauvaise réponse
         showError.value = true
         setTimeout(() => {
           showError.value = false
         }, 3000)
       }
-    } else if (data.type === 'button_state') {
-      isButtonEnabled.value = data.enabled
+    } else if (data.type === 'sekhmet_schemas') {
+      // Recevoir les schémas Sekhmet
+      sekhmetSchemas.value = data.enigma
+    } else if (data.type === 'sekhmet_result') {
+      const result = data.result
+      if (result.success) {
+        showSekhmetSuccess.value = true
+        resultMessage.value = result.message
+      }
     } else if (data.type === 'chat_history') {
       messages.value = data.messages || []
     } else if (data.type === 'chat_message') {
@@ -82,14 +90,6 @@ function handleChardinSubmit(data) {
   }
 }
 
-function handleButtonClick() {
-  if (isButtonEnabled.value && websocket) {
-    websocket.send(JSON.stringify({
-      action: 'button_click'
-    }))
-  }
-}
-
 function handleSendMessage(messageText) {
   if (websocket && isConnected.value) {
     websocket.send(JSON.stringify({
@@ -100,8 +100,11 @@ function handleSendMessage(messageText) {
 }
 
 function handleContinue() {
-  // Fermer le popup et afficher l'interface d'interaction
   showSuccessPopup.value = false
+}
+
+function closeSekhmetSuccess() {
+  showSekhmetSuccess.value = false
 }
 
 function goBack() {
@@ -131,57 +134,45 @@ function goBack() {
       </div>
     </transition>
 
-    <!-- Popup de succès -->
+    <!-- Notification succès Sekhmet -->
+    <transition name="slide-down">
+      <div v-if="showSekhmetSuccess" class="notification success">
+        <span>{{ resultMessage }}</span>
+        <button @click="closeSekhmetSuccess" class="close-notif">×</button>
+      </div>
+    </transition>
+
+    <!-- Popup de succès Chardin -->
     <SuccessPopup
       :show="showSuccessPopup"
       @continue="handleContinue"
       @close="showSuccessPopup = false"
     />
 
-    <!-- Contenu principal -->
-    <div v-if="!enigmaSolved" class="content">
+    <!-- Avant Chardin : Énigme Chardin -->
+    <div v-if="!chardinSolved" class="content">
       <EnigmeChardin
         :player-id="currentUserId"
         @submit-answer="handleChardinSubmit"
       />
     </div>
 
-    <!-- Interface d'interaction après résolution -->
+    <!-- Après Chardin : Schémas Sekhmet + Chat -->
     <div v-else class="interaction-content">
       <div class="main-grid">
-        <!-- Section Bouton -->
-        <div class="button-section">
-          <div class="section-card">
-            <h2>🔘 Interaction</h2>
-
-            <div class="state-indicator" :class="{ active: isButtonEnabled }">
-              <div class="state-icon">
-                {{ isButtonEnabled ? '🔓' : '🔒' }}
-              </div>
-              <div class="state-text">
-                {{ isButtonEnabled ? 'Bouton Activé' : 'Bouton Désactivé' }}
-              </div>
-            </div>
-
-            <button
-              @click="handleButtonClick"
-              :disabled="!isButtonEnabled"
-              class="action-button"
-              :class="{ enabled: isButtonEnabled }"
-            >
-              {{ isButtonEnabled ? 'Activer User 2' : 'En attente...' }}
-            </button>
-
-            <p class="info-text">
-              {{ isButtonEnabled
-                ? '✨ Cliquez pour activer le bouton de l\'Utilisateur 2'
-                : '⏳ Attendez que l\'Utilisateur 2 vous active'
-              }}
-            </p>
+        <!-- Schémas Sekhmet (User1 = Guide) -->
+        <div class="schemas-section">
+          <SchemaSekhmet
+            v-if="sekhmetSchemas"
+            :enigma="sekhmetSchemas"
+          />
+          <div v-else class="loading-box">
+            <div class="loading-spinner">⏳</div>
+            <p>Chargement des schémas...</p>
           </div>
         </div>
 
-        <!-- Section Chat -->
+        <!-- Chat -->
         <div class="chat-section">
           <ChatBox
             :messages="messages"
@@ -289,6 +280,35 @@ function goBack() {
   color: white;
 }
 
+.notification.success {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.close-notif {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.close-notif:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 .slide-down-enter-active,
 .slide-down-leave-active {
   transition: all 0.4s ease;
@@ -309,7 +329,7 @@ function goBack() {
   margin: 0 auto;
 }
 
-/* Interface d'interaction */
+/* Interface après Chardin */
 .interaction-content {
   max-width: 1400px;
   margin: 0 auto;
@@ -317,97 +337,45 @@ function goBack() {
 
 .main-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 2fr 1fr;
   gap: 2rem;
 }
 
-.section-card {
+.schemas-section,
+.chat-section {
+  background: transparent;
+}
+
+.loading-box {
   background: white;
   border-radius: 2rem;
-  padding: 2.5rem;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-}
-
-.section-card h2 {
+  padding: 4rem 2rem;
   text-align: center;
-  color: #1e293b;
-  font-size: 1.75rem;
-  margin: 0 0 2rem 0;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
 }
 
-/* État du bouton */
-.state-indicator {
-  padding: 1.5rem;
-  border-radius: 1rem;
-  background: #fee;
-  border: 3px solid #fcc;
-  margin-bottom: 2rem;
-  text-align: center;
-  transition: all 0.3s;
+.loading-spinner {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  animation: spin 2s linear infinite;
 }
 
-.state-indicator.active {
-  background: #efe;
-  border-color: #8e8;
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-.state-icon {
-  font-size: 3rem;
-  margin-bottom: 0.75rem;
-}
-
-.state-text {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #c00;
-}
-
-.state-indicator.active .state-text {
-  color: #0a0;
-}
-
-/* Bouton d'action */
-.action-button {
-  width: 100%;
-  padding: 1.5rem;
-  font-size: 1.25rem;
-  font-weight: 700;
-  border: none;
-  border-radius: 1rem;
-  cursor: not-allowed;
-  background: #cbd5e1;
-  color: #94a3b8;
-  transition: all 0.3s;
-  margin-bottom: 1.5rem;
-}
-
-.action-button.enabled {
-  cursor: pointer;
-  background: linear-gradient(135deg, #667eea 0%, #4f46e5 100%);
-  color: white;
-}
-
-.action-button.enabled:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
-}
-
-.action-button.enabled:active {
-  transform: translateY(-1px);
-}
-
-.info-text {
-  text-align: center;
-  padding: 1rem;
-  background: #f1f5f9;
-  border-radius: 0.75rem;
-  color: #475569;
-  font-size: 0.95rem;
-  line-height: 1.6;
+.loading-box p {
   margin: 0;
+  color: #64748b;
+  font-size: 1.125rem;
 }
 
-/* Responsive Mobile */
+/* Responsive */
 @media (max-width: 968px) {
   .page-container {
     padding: 1rem;
@@ -418,50 +386,8 @@ function goBack() {
     gap: 0.5rem;
   }
 
-  .back-btn,
-  .user-badge,
-  .status {
-    padding: 0.625rem 1.25rem;
-    font-size: 0.95rem;
-  }
-
-  .badge-icon {
-    font-size: 1.125rem;
-  }
-
   .main-grid {
     grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-
-  .section-card {
-    padding: 2rem 1.5rem;
-  }
-
-  .section-card h2 {
-    font-size: 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .state-indicator {
-    padding: 1.25rem;
-  }
-
-  .state-icon {
-    font-size: 2.5rem;
-  }
-
-  .state-text {
-    font-size: 1.125rem;
-  }
-
-  .action-button {
-    padding: 1.25rem;
-    font-size: 1.125rem;
-  }
-
-  .info-text {
-    font-size: 0.875rem;
   }
 
   .notification {
@@ -470,92 +396,16 @@ function goBack() {
   }
 }
 
-/* Responsive Petits écrans (< 400px) */
-@media (max-width: 400px) {
+@media (max-width: 640px) {
   .page-container {
     padding: 0.75rem;
-  }
-
-  .top-bar {
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
   }
 
   .back-btn,
   .user-badge,
   .status {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-  }
-
-  .section-card {
-    padding: 1.5rem 1.25rem;
-    border-radius: 1.5rem;
-  }
-
-  .section-card h2 {
-    font-size: 1.375rem;
-  }
-
-  .state-indicator {
-    padding: 1rem;
-    border-width: 2px;
-  }
-
-  .state-icon {
-    font-size: 2.25rem;
-  }
-
-  .state-text {
-    font-size: 1rem;
-  }
-
-  .action-button {
-    padding: 1.125rem;
-    font-size: 1rem;
-  }
-}
-
-/* Responsive Tablette (641px - 968px) */
-@media (min-width: 641px) and (max-width: 968px) {
-  .main-grid {
-    gap: 1.75rem;
-  }
-
-  .section-card {
-    padding: 2.25rem;
-  }
-}
-
-/* Responsive Paysage mobile */
-@media (max-width: 900px) and (orientation: landscape) {
-  .page-container {
-    padding: 1rem;
-  }
-
-  .top-bar {
-    margin-bottom: 1rem;
-  }
-
-  .main-grid {
-    gap: 1.25rem;
-  }
-
-  .section-card {
-    padding: 1.5rem;
-  }
-
-  .section-card h2 {
-    margin-bottom: 1.25rem;
-  }
-
-  .state-indicator {
-    padding: 1rem;
-    margin-bottom: 1.25rem;
-  }
-
-  .action-button {
-    margin-bottom: 1rem;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.95rem;
   }
 }
 </style>
