@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import ChatBox from '../components/ChatBox.vue'
 import HieroglyphKeyboard from '../components/HieroglyphKeyboard.vue'
+import ProgressPanel from '../components/ProgressPanel.vue'
 
 const router = useRouter()
 const isConnected = ref(false)
@@ -17,9 +18,15 @@ const sekhmetResultMessage = ref('')
 const showError = ref(false)
 const errorMessage = ref('')
 
+// Progression
+const teamScore = ref(0)
+const progress = ref([])
+
 let websocket = null
 
-const currentUserId = 'user2'
+const currentUserId = 'team2'
+const teamId = localStorage.getItem('teamId') || 'escape_team'
+const teamName = localStorage.getItem('teamName') || 'Escape Team'
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
 
 onMounted(() => {
@@ -33,7 +40,7 @@ onUnmounted(() => {
 })
 
 function connectWebSocket() {
-  const wsUrl = `${WS_URL}/ws/team1/${currentUserId}`
+  const wsUrl = `${WS_URL}/ws/${teamId}/${currentUserId}`
   websocket = new WebSocket(wsUrl)
 
   websocket.onopen = () => {
@@ -66,6 +73,9 @@ function connectWebSocket() {
           showError.value = false
         }, 3000)
       }
+    } else if (data.type === 'progress') {
+      teamScore.value = data.data.team_score || 0
+      progress.value = data.data.puzzles || []
     }
   }
 
@@ -118,9 +128,13 @@ function goBack() {
       <button @click="goBack" class="back-button">
         ← Retour
       </button>
+      <div class="team-info">
+        <span class="team-icon">🏆</span>
+        <span>{{ teamName }}</span>
+      </div>
       <div class="user-badge">
-        <span class="badge-icon">👤</span>
-        <span>Utilisateur 2</span>
+        <span class="badge-icon">👥</span>
+        <span>Équipe 2</span>
       </div>
       <div class="connection-status">
         <span class="status-dot" :class="{ connected: isConnected }"></span>
@@ -149,8 +163,8 @@ function goBack() {
       <div v-if="!showSekhmetSelection" class="waiting-section">
         <div class="content-box">
           <div class="user-badge-large">
-            <div class="badge-icon-large">👤</div>
-            <h1>Utilisateur 2</h1>
+            <div class="badge-icon-large">👥</div>
+            <h1>Équipe 2</h1>
           </div>
 
           <div class="state-indicator" :class="{ active: isButtonEnabled }">
@@ -169,21 +183,26 @@ function goBack() {
             :class="{ enabled: isButtonEnabled }"
           >
             <span class="button-text">
-              {{ isButtonEnabled ? 'Activer User 1' : 'En attente...' }}
+              {{ isButtonEnabled ? 'Activer Équipe 1' : 'En attente...' }}
             </span>
           </button>
 
           <div class="info-message">
             <p v-if="isButtonEnabled">
-              ✨ Cliquez sur le bouton pour activer l'Utilisateur 1
+              ✨ Cliquez sur le bouton pour activer l'Équipe 1
             </p>
             <p v-else>
-              ⏳ En attente que User 1 résolve l'énigme de Chardin...
+              ⏳ En attente que l'Équipe 1 résolve l'énigme de Chardin...
             </p>
           </div>
         </div>
 
-        <div class="chat-section">
+        <div class="side-section">
+          <ProgressPanel
+            :team-score="teamScore"
+            :progress="progress"
+          />
+          
           <ChatBox
             :messages="messages"
             :current-user-id="currentUserId"
@@ -202,7 +221,12 @@ function goBack() {
           />
         </div>
 
-        <div class="chat-section">
+        <div class="side-section">
+          <ProgressPanel
+            :team-score="teamScore"
+            :progress="progress"
+          />
+          
           <ChatBox
             :messages="messages"
             :current-user-id="currentUserId"
@@ -252,6 +276,22 @@ function goBack() {
 .back-button:hover {
   background: rgba(255, 255, 255, 0.3);
   transform: translateX(-5px);
+}
+
+.team-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+  color: white;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+}
+
+.team-icon {
+  font-size: 1.25rem;
 }
 
 .user-badge {
@@ -376,6 +416,12 @@ function goBack() {
   gap: 2rem;
 }
 
+.side-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
 .content-box {
   background: white;
   border-radius: 2rem;
@@ -394,7 +440,7 @@ function goBack() {
 }
 
 .user-badge-large h1 {
-  color: #a855f7;
+  color: #f5576c;
   font-size: 2rem;
   margin: 0;
 }
@@ -445,13 +491,13 @@ function goBack() {
 
 .action-button.enabled {
   cursor: pointer;
-  background: linear-gradient(135deg, #f093fb 0%, #a855f7 100%);
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
 }
 
 .action-button.enabled:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 30px rgba(168, 85, 247, 0.4);
+  box-shadow: 0 10px 30px rgba(245, 87, 108, 0.4);
 }
 
 .action-button.enabled:active {
@@ -498,6 +544,7 @@ function goBack() {
   }
 
   .back-button,
+  .team-info,
   .user-badge,
   .connection-status {
     padding: 0.625rem 1.25rem;

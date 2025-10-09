@@ -1,285 +1,434 @@
-# 🏛️ Escape Game Musée
+# 🎮 Escape Game Musée - Workshop EPSI 2025-2026
 
-> Une expérience interactive pour rendre la visite des musées plus engageante grâce à des énigmes collaboratives en temps réel.
+## 📋 Vue d'ensemble
 
-![Vue.js](https://img.shields.io/badge/Vue.js-3.4-4FC08D?logo=vue.js&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688?logo=fastapi&logoColor=white)
-![WebSocket](https://img.shields.io/badge/WebSocket-Real--time-orange)
-![Responsive](https://img.shields.io/badge/Responsive-Mobile%20%7C%20Tablet%20%7C%20Desktop-blue)
+Application web complète d'escape game au musée avec **backend Python/FastAPI/MariaDB** et **frontend Vue.js 3**.
 
----
+### 🎯 Fonctionnalités
 
-## 🎯 Concept
-
-**Escape Game Musée** est une application web collaborative qui transforme la visite d'un musée en une aventure ludique. Deux visiteurs explorent physiquement différentes zones du musée et doivent collaborer en temps réel pour résoudre des énigmes basées sur les œuvres exposées.
-
-### Comment ça marche ?
-
-1. **Deux joueurs** se promènent dans le musée avec leurs smartphones
-2. **L'un résout des énigmes** basées sur les œuvres (ex: compter des éléments sur des tableaux)
-3. **Ils communiquent** via un chat en temps réel
-4. **Ils collaborent** grâce à un système de boutons interactifs
-5. **Ils apprennent** en découvrant l'histoire des artistes
+✅ **Multi-équipes** - Plusieurs équipes peuvent jouer simultanément
+✅ **WebSocket temps réel** - Communication instantanée
+✅ **Base de données persistante** - MariaDB avec scores et progression
+✅ **Chat intégré** - Communication entre les joueurs
+✅ **Système collaboratif** - Boutons d'interaction entre users
+✅ **Énigmes configurables** - Facile d'ajouter de nouvelles énigmes
+✅ **Interface responsive** - Mobile, tablette, desktop
+✅ **Documentation complète** - Guides détaillés
 
 ---
 
-## ✨ Fonctionnalités
-
-- 🎨 **Énigmes basées sur les œuvres** (ex: "Le Code des Natures Mortes" de Chardin)
-- 💬 **Chat en temps réel** entre les deux joueurs
-- 🔘 **Système d'interaction** : activation mutuelle des actions
-- 📱 **100% Responsive** : mobile, tablette et desktop
-- 📚 **Contenu culturel** : biographies et anecdotes sur les artistes
-- ⚡ **Synchronisation instantanée** via WebSocket
-
----
-
-## 🛠️ Technologies
-
-### Frontend
-- **Vue.js 3** - Framework JavaScript
-- **Vue Router** - Navigation
-- **Vite** - Build tool
-- **WebSocket** - Communication temps réel
-
-### Backend
-- **FastAPI** - Framework web Python
-- **Uvicorn** - Serveur ASGI
-- **WebSocket** - Communication bidirectionnelle
-
----
-
-## 📁 Structure du projet
-
-```
-escape-game-musee/
-├── frontend/                     # Application Vue.js
-│   ├── src/
-│   │   ├── components/          # Composants réutilisables
-│   │   │   ├── ChatBox.vue      # Chat en temps réel
-│   │   │   ├── EnigmeChardin.vue # Énigme Chardin
-│   │   │   └── SuccessPopup.vue  # Popup de succès
-│   │   ├── views/               # Pages principales
-│   │   │   ├── Home.vue         # Sélection utilisateur
-│   │   │   ├── User1.vue        # Interface User 1
-│   │   │   └── User2.vue        # Interface User 2
-│   │   ├── router/
-│   │   │   └── index.js         # Configuration des routes
-│   │   └── main.js
-│   └── package.json
-│
-└── backend/                      # API FastAPI
-    ├── main.py                   # Serveur principal
-    └── requirements.txt          # Dépendances Python
-```
-
----
-
-## 🚀 Installation
+## 🚀 Démarrage Rapide (5 minutes)
 
 ### Prérequis
 
-- **Node.js** ≥ 18.0
-- **Python** ≥ 3.10
-- **npm**
-- **pip**
+- **Python 3.x**
+- **Node.js 20+**
+- **MariaDB** (démarré sur port 3306)
 
-### 1. Cloner le repository
+### Installation
 
-```bash
-git clone https://github.com/votre-username/escape-game-musee.git
-cd escape-game-musee
-```
-
-### 2. Installation du Frontend
+#### 1. Backend
 
 ```bash
-cd frontend
-npm install
-```
-
-### 3. Installation du Backend
-
-```bash
-cd backend
-
-# Créer un environnement virtuel
-python -m venv venv
-
-# Activer l'environnement virtuel
-# Windows
-venv\Scripts\activate
-# macOS/Linux
-source venv/bin/activate
+cd backoffice
 
 # Installer les dépendances
 pip install -r requirements.txt
+
+# Configurer MariaDB
+python setup_mariadb.py full
+
+# Tester l'installation
+python test_installation.py
+
+# Lancer le serveur
+fastapi dev main.py
 ```
 
----
+**Backend accessible sur :** http://localhost:8000
 
-## 💻 Utilisation
-
-### Lancer l'application en local
-
-#### Terminal 1 : Backend
+#### 2. Frontend
 
 ```bash
-cd backend
-source venv/bin/activate  # ou venv\Scripts\activate sur Windows
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
+cd frontoffice
 
-➡️ Le serveur démarre sur `http://localhost:8000`
+# Installer les dépendances
+npm install
 
-#### Terminal 2 : Frontend
-
-```bash
-cd frontend
+# Lancer le frontend
 npm run dev
 ```
 
-➡️ L'application démarre sur `http://localhost:5173`
-
-### Tester avec 2 utilisateurs
-
-#### Sur le même appareil
-1. Ouvrez `http://localhost:5173` dans le navigateur 1
-2. Cliquez sur **"Utilisateur 1"**
-3. Ouvrez `http://localhost:5173` dans un autre onglet/navigateur
-4. Cliquez sur **"Utilisateur 2"**
-
-#### Sur 2 appareils (même réseau local)
-1. Trouvez votre IP locale : `ipconfig` (Windows) ou `ifconfig` (Mac/Linux)
-2. Sur l'appareil 1 : ouvrez `http://VOTRE_IP:5173` → **"Utilisateur 1"**
-3. Sur l'appareil 2 : ouvrez `http://VOTRE_IP:5173` → **"Utilisateur 2"**
-
-**Exemple :** Si votre IP est `192.168.1.100`, ouvrez `http://192.168.1.100:5173`
+**Frontend accessible sur :** http://localhost:5173
 
 ---
 
-## 🎮 Exemple d'énigme
+## 📂 Structure du Projet
 
-### "Le Code des Natures Mortes" - Jean Siméon Chardin
+```
+workshop-2025-2026-epsi/
+│
+├── backoffice/              # Backend Python/FastAPI
+│   ├── main.py              # Application principale
+│   ├── database.py          # Connexion MariaDB
+│   ├── models.py            # Modèles SQLAlchemy
+│   ├── config.py            # Configuration BDD
+│   ├── setup_mariadb.py     # Setup automatique
+│   ├── db_utils.py          # Utilitaires BDD
+│   ├── puzzles_config.py    # Configuration énigmes
+│   ├── requirements.txt     # Dépendances Python
+│   └── *.md                 # Documentation
+│
+├── frontoffice/             # Frontend Vue.js 3
+│   ├── src/
+│   │   ├── views/           # Pages
+│   │   ├── components/      # Composants
+│   │   ├── services/        # Services WebSocket/API
+│   │   └── router/          # Routage
+│   ├── package.json
+│   ├── .env                 # Configuration
+│   └── README.md
+│
+└── INTEGRATION.md           # Guide d'intégration complet
+```
 
-**Objectif :** User 1 doit trouver un code à 4 chiffres en observant 4 tableaux de Chardin.
+---
 
-**Comment jouer :**
-1. User 1 observe les 4 natures mortes exposées
-2. Il compte :
-   - Les **pêches** sur le 1er tableau → **3**
-   - Les **noix** sur le 2ème tableau → **2**
-   - Les **œufs** sur le 3ème tableau → **6**
-   - Les **poires** sur le 4ème tableau → **4**
-3. Il entre le code **3264** dans l'application
-4. Un popup apparaît avec une biographie de Chardin
-5. Il peut ensuite interagir avec User 2 via le chat et les boutons
+## 🎮 Comment jouer ?
 
-**Tableaux utilisés :**
-- [Corbeille de pêches](https://collections.louvre.fr/ark:/53355/cl010059177)
-- [Panier de raisins avec noix](https://collections.louvre.fr/ark:/53355/cl010059558)
-- [Nature morte aux œufs](https://collections.louvre.fr/ark:/53355/cl010064801)
-- [Panier de prunes avec poires](https://collections.louvre.fr/ark:/53355/cl010059538)
+### 1. Créer une équipe
+
+- Accéder à http://localhost:5173
+- Entrer un **ID d'équipe** (ex: `team1`, `equipe-alpha`)
+- Optionnellement un **nom d'équipe**
+
+### 2. Choisir son rôle
+
+- **Utilisateur 1** : Résout les énigmes (ex: énigme Chardin)
+- **Utilisateur 2** : Collabore via le système de boutons
+
+### 3. Jouer !
+
+- **User1** résout l'énigme du code Chardin (code: `3563`)
+- Les deux joueurs communiquent via le **chat**
+- Ils collaborent avec le **système de boutons**
+- La **progression** est affichée en temps réel
+- Les **scores** sont sauvegardés dans MariaDB
 
 ---
 
 ## 🔧 Configuration
 
-### Variables d'environnement
+### Backend (`backoffice/config.py`)
 
-#### Frontend (`frontend/.env`)
+```python
+MARIADB_CONFIG = {
+    "user": "root",
+    "password": "",
+    "host": "localhost",
+    "port": "3306",
+    "database": "escape_game_db"
+}
+```
+
+### Frontend (`frontoffice/.env`)
 
 ```env
-VITE_API_URL=localhost
+VITE_API_URL=http://localhost:8000
 VITE_WS_URL=ws://localhost:8000
 ```
 
-Pour un test sur le réseau local, remplacez par votre IP :
-```env
-VITE_API_URL=192.168.1.100
-VITE_WS_URL=ws://192.168.1.100:8000
+---
+
+## 📡 Architecture
+
+```
+Frontend (Vue.js 3)
+      ↕ WebSocket + HTTP
+Backend (FastAPI)
+      ↕ SQLAlchemy ORM
+MariaDB Database
+```
+
+### Communication temps réel
+
+- **WebSocket** : Chat, boutons, progression
+- **HTTP REST** : Statistiques d'équipe
+
+---
+
+## 🗄️ Base de Données
+
+### Tables principales
+
+- **teams** : Équipes et scores
+- **players** : Joueurs
+- **progress** : Progression des énigmes
+- **chat_messages** : Historique des messages
+- **button_states** : États des boutons
+- **game_sessions** : Sessions de jeu
+
+### Voir les stats
+
+```bash
+cd backoffice
+python db_utils.py stats
 ```
 
 ---
 
-## 🎨 Architecture
+## 📚 Documentation
 
+### Guides disponibles
+
+1. **[INTEGRATION.md](INTEGRATION.md)** 🔗
+   - Guide d'intégration complet
+   - Architecture détaillée
+   - Scénarios d'utilisation
+
+2. **[backoffice/README.md](backoffice/README.md)** 🔗
+   - Documentation backend
+   - Configuration MariaDB
+   - Ajouter des énigmes
+
+3. **[backoffice/QUICKSTART_MARIADB.md](backoffice/QUICKSTART_MARIADB.md)** ⚡
+   - Démarrage rapide backend
+   - Commandes essentielles
+   - Troubleshooting
+
+4. **[backoffice/MIGRATION_MARIADB.md](backoffice/MIGRATION_MARIADB.md)** 🔄
+   - Guide de migration complet
+   - Configuration avancée
+
+5. **[frontoffice/README.md](frontoffice/README.md)** 🎨
+   - Documentation frontend
+   - Composants Vue.js
+   - Personnalisation
+
+---
+
+## 🎯 Fonctionnalités Clés
+
+### Backend
+
+- ✅ Base de données MariaDB persistante
+- ✅ WebSocket pour communication temps réel
+- ✅ Gestion multi-équipes
+- ✅ Système de score et progression
+- ✅ Chat avec historique
+- ✅ États des boutons synchronisés
+- ✅ API REST pour statistiques
+
+### Frontend
+
+- ✅ Sélection d'équipe dynamique
+- ✅ Interface User1 et User2
+- ✅ Énigme Chardin interactive
+- ✅ Chat en temps réel
+- ✅ Panel de progression
+- ✅ Design responsive
+- ✅ Animations et effets
+
+---
+
+## 🛠️ Commandes Utiles
+
+### Backend
+
+```bash
+# Configuration MariaDB
+python setup_mariadb.py full
+
+# Statistiques
+python db_utils.py stats
+
+# Réinitialiser
+python db_utils.py reset
+
+# Lancer le serveur
+fastapi dev main.py
 ```
-┌──────────────┐                              ┌──────────────┐
-│   User 1     │                              │   User 2     │
-│  (Mobile)    │◄────── WebSocket ──────────►│  (Mobile)    │
-│              │                              │              │
-│  - Énigmes   │                              │  - Boutons   │
-│  - Boutons   │         FastAPI              │  - Chat      │
-│  - Chat      │       (Backend)              │              │
-└──────────────┘                              └──────────────┘
-       │                                             │
-       └──────────────────┬─────────────────────────┘
-                          │
-                    Communication
-                    temps réel
+
+### Frontend
+
+```bash
+# Installer
+npm install
+
+# Développement
+npm run dev
+
+# Build production
+npm run build
 ```
 
-**Flow de communication :**
-1. User 1 résout une énigme → Backend valide
-2. Backend envoie un message à User 1 → Popup de succès
-3. User 2 clique sur un bouton → Backend notifie User 1
-4. User 1 envoie un message → Backend le transmet à User 2
-5. Tout est synchronisé en temps réel ! ⚡
+---
+
+## 🐛 Problèmes Courants
+
+### ❌ MariaDB ne démarre pas
+
+**Solution :**
+- Windows (XAMPP) : Ouvrir le panneau → Start MySQL
+- Linux : `sudo systemctl start mariadb`
+
+### ❌ "Déconnecté" dans le frontend
+
+**Vérifications :**
+1. Backend démarré ?
+2. MariaDB accessible ?
+3. `.env` configuré ?
+
+**Test rapide :**
+```bash
+curl http://localhost:8000
+python backoffice/test_installation.py
+```
+
+### ❌ WebSocket ne se connecte pas
+
+**Solution :**
+- Vérifier que le backend tourne
+- Vérifier `VITE_WS_URL` dans `.env`
+- Ouvrir F12 → Console pour voir les erreurs
+
+**Plus d'aide :** Consultez `INTEGRATION.md`
 
 ---
 
-## 🤝 Contribution
+## 🎨 Ajouter une Énigme
 
-Les contributions sont les bienvenues ! 
+### 1. Configuration (`backoffice/puzzles_config.py`)
 
-### Comment contribuer
+```python
+"ma_enigme": {
+    "name": "Mon Énigme",
+    "correct_code": "CODE123",
+    "points": 150,
+    "restricted_to": None,
+    "hints": ["Indice 1"]
+}
+```
 
-1. Fork le projet
-2. Créez votre branche (`git checkout -b feature/ma-feature`)
-3. Commitez vos changements (`git commit -m 'feat: ajout nouvelle énigme'`)
-4. Push vers la branche (`git push origin feature/ma-feature`)
-5. Ouvrez une Pull Request
+### 2. Handler Backend (`backoffice/main.py`)
 
-### Conventions de commit
+```python
+elif data.get("action") == "validate_ma_enigme":
+    result = await manager.validate_puzzle(...)
+```
 
-- `feat:` Nouvelle fonctionnalité
-- `fix:` Correction de bug
-- `docs:` Documentation
-- `style:` Formatage
-- `refactor:` Refactorisation
-- `test:` Tests
+### 3. Composant Frontend
 
----
+Créer `frontoffice/src/components/EnigmaMaNouvelle.vue`
 
-## 📋 Roadmap
-
-### ✅ Version actuelle (1.0)
-- Énigme Chardin avec validation de code
-- Chat en temps réel
-- Système de boutons interactifs
-- Design responsive
-
-### 🔜 Prochaines étapes
-- Scanner QR codes pour débloquer des indices
-- Timer partagé avec compte à rebours
-- Nouvelles énigmes (Van Gogh, Monet, etc.)
-- Carte interactive du musée
-- Système de hints/indices
-
-### 💡 Idées futures
-- Mode multijoueur (4+ joueurs)
-- Système de scores et leaderboard
-- Interface admin pour créer des énigmes
-- Support multi-musées
-- Mode hors-ligne (PWA)
+**Guide complet :** Consultez `backoffice/DATABASE_README.md`
 
 ---
 
-## 👥 Auteurs
+## 📊 Monitoring
 
-- **KOUADIO Romaric**
-- **LANDAIS Alexis**
-- **MERCERON Romain**
-- **PEROLS Mathys**
+### Statistiques d'équipe
 
+```bash
+# Via CLI
+python backoffice/db_utils.py stats
+
+# Via API
+curl http://localhost:8000/teams/team1/stats
+
+# Via SQL
+mysql -u root escape_game_db
+SELECT * FROM teams;
+```
+
+---
+
+## 🚀 Déploiement Production
+
+### Backend
+
+```bash
+cd backoffice
+
+# Configuration production
+# Modifier config.py avec un utilisateur dédié
+
+# Lancer avec Gunicorn
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app
+```
+
+### Frontend
+
+```bash
+cd frontoffice
+
+# Build
+npm run build
+
+# Déployer le dossier dist/
+# avec Nginx, Apache, ou autre serveur web
+```
+
+---
+
+## ✅ Checklist avant de commencer
+
+- [ ] Python 3.x installé
+- [ ] Node.js 20+ installé
+- [ ] MariaDB installé et démarré (port 3306)
+- [ ] Backend : `pip install -r requirements.txt`
+- [ ] Backend : `python setup_mariadb.py full`
+- [ ] Backend : `python test_installation.py` → Score 4/4
+- [ ] Frontend : `npm install`
+- [ ] Frontend : `.env` configuré
+- [ ] Backend lancé : `fastapi dev main.py`
+- [ ] Frontend lancé : `npm run dev`
+- [ ] http://localhost:5173 accessible
+- [ ] WebSocket connecté ✅
+
+---
+
+## 🎓 Contexte
+
+**Projet :** Workshop EPSI 2025-2026
+**Sujet :** Escape Game au Musée
+**Technologies :**
+- Backend : Python, FastAPI, SQLAlchemy, MariaDB
+- Frontend : Vue.js 3, Vite, WebSocket
+- Design : CSS moderne avec animations
+
+---
+
+## 📞 Support
+
+**Problème ?**
+1. Consultez `INTEGRATION.md`
+2. Vérifiez la documentation spécifique (backend/frontend)
+3. Exécutez `python test_installation.py` (backend)
+4. Vérifiez les logs dans la console (F12)
+
+---
+
+## 🎉 Prêt à jouer !
+
+### Lancer l'application
+
+```bash
+# Terminal 1 : Backend
+cd backoffice
+fastapi dev main.py
+
+# Terminal 2 : Frontend
+cd frontoffice
+npm run dev
+```
+
+**Accéder à l'application :** http://localhost:5173
+
+**Bon workshop ! 🚀🎮**
+
+---
+
+**Version :** 2.0.0 - Intégration MariaDB
+**Date :** Octobre 2025
+**Auteurs :** Équipe Workshop EPSI

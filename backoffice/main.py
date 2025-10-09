@@ -1,8 +1,11 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict, List, Optional
+from sqlalchemy.orm import Session
+from typing import Dict, Tuple
 from datetime import datetime
-from pydantic import BaseModel
+
+from database import get_db, init_db
+from models import Team, Player, Progress, ChatMessage, ButtonState, GameSession
 
 app = FastAPI()
 
@@ -99,218 +102,397 @@ class SekhmetEnigma(BaseModel):
 
 class GameManager:
     def __init__(self):
-        self.active_connections: Dict[str, WebSocket] = {}
+        # Stocke les connexions avec (team_id, player_id) comme clé
+        self.active_connections: Dict[Tuple[str, str], WebSocket] = {}
         self.solved_users = set()
-        self.sekhmet_solved = False
-        self.button_states: Dict[str, bool] = {
-            "user1": False,
-            "user2": True
-        }
-        self.chat_history: List[Dict] = []
-        self.user1_hints_unlocked = False
 
-    async def connect(self, websocket: WebSocket, user_id: str):
+    async def connect(self, websocket: WebSocket, team_id: str, player_id: str, db: Session):
+        """Connexion d'un utilisateur"""
         await websocket.accept()
-        self.active_connections[user_id] = websocket
-        await self.send_button_state(user_id)
-        await self.send_chat_history(user_id)
+        # Stocker avec (team_id, player_id) pour pouvoir filtrer par équipe
+        self.active_connections[(team_id, player_id)] = websocket
+        
+        print(f"✅ Connexion: team_id={team_id}, player_id={player_id}")
 
-        # Envoyer l'énigme selon l'utilisateur
-        if user_id == "user1" and self.user1_hints_unlocked:
-            await self.send_sekhmet_schemas(user_id)
-        elif user_id == "user2" and self.user1_hints_unlocked:
-            await self.send_user2_interface(user_id)
+        # Vérifier si l'équipe existe, sinon la créer
+        team = db.query(Team).filter(Team.id == team_id).first()
+        if not team:
+            team = Team(id=team_id, name=f"Équipe {team_id}")
+            db.add(team)
+            db.commit()
+            print(f"🆕 Nouvelle équipe créée: {team_id}")
 
-    def disconnect(self, user_id: str):
-        if user_id in self.active_connections:
-            del self.active_connections[user_id]
+        # Vérifier si le joueur existe, sinon le créer
+        player = db.query(Player).filter(
+            Player.id == player_id,
+            Player.team_id == team_id
+        ).first()
+        
+        if not player:
+            player = Player(
+                id=player_id,
+                team_id=team_id,
+                name=f"Joueur {player_id}",
+                is_active=True
+            )
+            db.add(player)
+            db.commit()
+        else:
+            player.is_active = True
+            player.last_activity = datetime.now()
+            db.commit()
 
-    async def send_button_state(self, user_id: str):
-        if user_id in self.active_connections:
-            await self.active_connections[user_id].send_json({
+        # Initialiser l'état du bouton si nécessaire
+        button_state = db.query(ButtonState).filter(
+            ButtonState.team_id == team_id,
+            ButtonState.player_id == player_id
+        ).first()
+        
+        if not button_state:
+            # Team2 commence avec le bouton activé
+            is_enabled = player_id == "team2"
+            button_state = ButtonState(
+                team_id=team_id,
+                player_id=player_id,
+                is_enabled=is_enabled
+            )
+            db.add(button_state)
+            db.commit()
+
+        # Envoyer l'état initial
+        await self.send_button_state(team_id, player_id, db)
+        await self.send_chat_history(team_id, player_id, db)
+        await self.send_progress(team_id, player_id, db)
+
+    def disconnect(self, team_id: str, player_id: str, db: Session):
+        """Déconnexion d'un utilisateur"""
+        if (team_id, player_id) in self.active_connections:
+            del self.active_connections[(team_id, player_id)]
+        
+        # Marquer le joueur comme inactif
+        player = db.query(Player).filter(
+            Player.id == player_id,
+            Player.team_id == team_id
+        ).first()
+        if player:
+            player.is_active = False
+            player.last_activity = datetime.now()
+            db.commit()
+
+    async def send_button_state(self, team_id: str, player_id: str, db: Session):
+        """Envoie l'état du bouton à un utilisateur"""
+        if (team_id, player_id) in self.active_connections:
+            button_state = db.query(ButtonState).filter(
+                ButtonState.team_id == team_id,
+                ButtonState.player_id == player_id
+            ).first()
+            
+            await self.active_connections[(team_id, player_id)].send_json({
                 "type": "button_state",
-                "enabled": self.button_states.get(user_id, False)
+                "enabled": button_state.is_enabled if button_state else False
             })
 
-    async def send_chat_history(self, user_id: str):
-        if user_id in self.active_connections:
-            await self.active_connections[user_id].send_json({
+    async def send_chat_history(self, team_id: str, player_id: str, db: Session):
+        """Envoie l'historique du chat"""
+        if (team_id, player_id) in self.active_connections:
+            messages = db.query(ChatMessage).filter(
+                ChatMessage.team_id == team_id
+            ).order_by(ChatMessage.timestamp).limit(100).all()
+            
+            message_list = [{
+                "user_id": msg.player_id,
+                "text": msg.message,
+                "timestamp": msg.timestamp.isoformat(),
+                "is_system": msg.is_system
+            } for msg in messages]
+            
+            await self.active_connections[(team_id, player_id)].send_json({
                 "type": "chat_history",
-                "messages": self.chat_history
+                "messages": message_list
             })
 
-    async def send_sekhmet_schemas(self, user_id: str):
-        """Envoie les schémas à User 1 (rôle de guide uniquement)"""
-        if user_id in self.active_connections:
-            enigma = SekhmetEnigma()
-            await self.active_connections[user_id].send_json({
+    async def send_progress(self, team_id: str, player_id: str, db: Session):
+        """Envoie la progression de l'équipe"""
+        if (team_id, player_id) in self.active_connections:
+            team = db.query(Team).filter(Team.id == team_id).first()
+            progress_items = db.query(Progress).filter(
+                Progress.team_id == team_id
+            ).all()
+            
+            progress_data = {
+                "team_score": team.score if team else 0,
+                "puzzles": [{
+                    "name": p.puzzle_name,
+                    "is_solved": p.is_solved,
+                    "attempts": p.attempts,
+                    "hints_used": p.hints_used,
+                    "points_earned": p.points_earned
+                } for p in progress_items]
+            }
+            
+            await self.active_connections[(team_id, player_id)].send_json({
+                "type": "progress",
+                "data": progress_data
+            })
+
+    async def broadcast_button_states(self, team_id: str, db: Session):
+        """Diffuse l'état des boutons à tous les utilisateurs de l'équipe"""
+        players = db.query(Player).filter(
+            Player.team_id == team_id,
+            Player.is_active == True
+        ).all()
+        
+        for player in players:
+            if (team_id, player.id) in self.active_connections:
+                await self.send_button_state(team_id, player.id, db)
+
+    async def broadcast_message(self, team_id: str, message: Dict):
+        """Diffuse un message de chat à tous les membres de l'équipe"""
+        # ✅ FILTRER PAR ÉQUIPE !
+        for (t_id, p_id), ws in self.active_connections.items():
+            if t_id == team_id:  # Envoyer seulement aux membres de cette équipe
+                await ws.send_json({
+                    "type": "chat_message",
+                    "message": message
+                })
+
+    async def broadcast_progress(self, team_id: str, db: Session):
+        """Diffuse la progression à tous les membres de l'équipe"""
+        players = db.query(Player).filter(
+            Player.team_id == team_id,
+            Player.is_active == True
+        ).all()
+        
+        for player in players:
+            if (team_id, player.id) in self.active_connections:
+                await self.send_progress(team_id, player.id, db)
+
+    async def send_sekhmet_schemas(self, team_id: str, db: Session):
+        """Envoie les schémas Sekhmet après résolution de Chardin"""
+        from sekhmet_config import SEKHMET_ENIGMA
+        
+        # Envoyer les schémas complets à team1 (guide)
+        if (team_id, "team1") in self.active_connections:
+            await self.active_connections[(team_id, "team1")].send_json({
                 "type": "sekhmet_schemas",
-                "enigma": {
-                    "id": enigma.id,
-                    "title": enigma.title,
-                    "description": enigma.description,
-                    "riddle": enigma.riddle,
-                    "divinities": [d.dict() for d in enigma.divinities]
-                }
+                "enigma": SEKHMET_ENIGMA
             })
-
-    async def send_user2_interface(self, user_id: str):
-        """Envoie l'interface de sélection à User 2"""
-        if user_id in self.active_connections:
-            enigma = SekhmetEnigma()
-            await self.active_connections[user_id].send_json({
+        
+        # Envoyer la sélection des divinités à team2 (validateur)
+        if (team_id, "team2") in self.active_connections:
+            await self.active_connections[(team_id, "team2")].send_json({
                 "type": "sekhmet_selection",
-                "divinities": [
-                    {"id": d.id, "name": d.name}
-                    for d in enigma.divinities
-                ]
+                "divinities": [{"id": d["id"], "name": d["name"]} for d in SEKHMET_ENIGMA["divinities"]]
             })
 
-    async def unlock_sekhmet_enigma(self):
-        """Débloquer l'énigme Sekhmet pour les deux utilisateurs"""
-        self.user1_hints_unlocked = True
-
-        # Envoyer aux deux utilisateurs
-        if "user1" in self.active_connections:
-            await self.send_sekhmet_schemas("user1")
-
-        if "user2" in self.active_connections:
-            await self.send_user2_interface("user2")
-
-    async def validate_sekhmet(self, user_id: str, hieroglyph_code: str):
-        """Valide la réponse de l'énigme Sekhmet (uniquement User 2)"""
-
-        if user_id != "user2":
-            return {
-                "success": False,
-                "message": "Seul l'Utilisateur 2 peut valider cette énigme"
-            }
-
-        if self.sekhmet_solved:
-            return {
-                "success": False,
-                "message": "Énigme déjà résolue"
-            }
-
-        # Séquence correcte pour SEKHMET basée sur l'image
-        correct_code = "h3-h6-h5-h10"
-
-        if hieroglyph_code == correct_code:
-            self.sekhmet_solved = True
-
-            success_data = {
-                "success": True,
-                "message": "🎉 Bravo ! Vous avez correctement reproduit le nom de SEKHMET en hiéroglyphes !",
-                "info": "Sekhmet était la déesse guerrière égyptienne, fille du dieu soleil Rê. Redoutable et puissante, elle protégeait les pharaons."
-            }
-
-            # Notifier les deux utilisateurs
-            for uid in ["user1", "user2"]:
-                if uid in self.active_connections:
-                    await self.active_connections[uid].send_json({
-                        "type": "sekhmet_result",
-                        "result": success_data
-                    })
-
-            return success_data
-        else:
-            return {
-                "success": False,
-                "message": "❌ Ce n'est pas la bonne séquence de hiéroglyphes. Vérifiez avec User 1 !",
-                "attempted_code": hieroglyph_code
-            }
-
-    async def handle_validate_sekhmet(data: dict, ws_id: str):
-        hieroglyph_code = data.get('hieroglyph_code', '')
-
-        # Séquence correcte pour SEKHMET basée sur l'image
-        # h3-h6-h5-h10
-        correct_code = "h3-h6-h5-h10"
-
-        if hieroglyph_code == correct_code:
-            result = {
-                "success": True,
-                "message": "🎉 Bravo ! Vous avez correctement reproduit le nom de SEKHMET en hiéroglyphes !"
-            }
-        else:
-            result = {
-                "success": False,
-                "message": f"❌ La séquence n'est pas correcte. Vérifiez avec User 1 et réessayez !"
-            }
-
-        await broadcast_to_team('team1', {
-            'type': 'sekhmet_result',
-            'result': result
-        })
-
-    async def validate_chardin(self, user_id: str, code: str):
+    async def validate_chardin(self, team_id: str, player_id: str, code: str, db: Session):
         """Valide le code Chardin"""
         correct_code = "3563"
 
-        if user_id != "user1":
+        if player_id != "team1":
             return {
                 "success": False,
-                "message": "Cette énigme est réservée à l'Utilisateur 1"
+                "message": "Cette énigme est réservée à Team 1"
             }
 
-        if "chardin" in self.solved_users:
+        # Vérifier si déjà résolu
+        progress = db.query(Progress).filter(
+            Progress.team_id == team_id,
+            Progress.puzzle_name == "chardin"
+        ).first()
+
+        if not progress:
+            progress = Progress(
+                team_id=team_id,
+                player_id=player_id,
+                puzzle_name="chardin"
+            )
+            db.add(progress)
+            db.commit()
+
+        if progress.is_solved:
             return {
                 "success": False,
                 "message": "Vous avez déjà résolu cette énigme"
             }
 
+        # Incrémenter les tentatives
+        progress.attempts += 1
+
         if code == correct_code:
-            self.solved_users.add("chardin")
-            # Débloquer l'énigme Sekhmet
-            await self.unlock_sekhmet_enigma()
+            progress.is_solved = True
+            progress.solved_at = datetime.now()
+            progress.points_earned = 100
+            
+            # Mettre à jour le score de l'équipe
+            team = db.query(Team).filter(Team.id == team_id).first()
+            if team:
+                team.score += progress.points_earned
+            
+            db.commit()
+
+            # Diffuser la progression
+            await self.broadcast_progress(team_id, db)
+            
+            # Envoyer les schémas Sekhmet à team1
+            await self.send_sekhmet_schemas(team_id, db)
 
             return {
                 "success": True,
                 "message": "Bravo ! Le code est correct ! 🎉",
-                "next_enigma": "sekhmet"
+                "points": progress.points_earned
             }
         else:
+            db.commit()
             return {
                 "success": False,
                 "message": "Code incorrect. Observez plus attentivement les tableaux."
             }
 
-    async def broadcast_button_states(self):
-        for user_id in self.active_connections:
-            await self.send_button_state(user_id)
+    async def validate_sekhmet(self, team_id: str, player_id: str, hieroglyph_code: str, db: Session):
+        """Valide l'énigme Sekhmet"""
+        
+        # Vérifier que c'est team2 qui valide
+        if player_id != "team2":
+            return {
+                "success": False,
+                "message": "Cette énigme doit être validée par Équipe 2"
+            }
+        
+        # Vérifier si déjà résolu
+        progress = db.query(Progress).filter(
+            Progress.team_id == team_id,
+            Progress.puzzle_name == "sekhmet"
+        ).first()
+        
+        if not progress:
+            progress = Progress(
+                team_id=team_id,
+                player_id=player_id,
+                puzzle_name="sekhmet"
+            )
+            db.add(progress)
+            db.commit()
+        
+        if progress.is_solved:
+            return {
+                "success": False,
+                "message": "Vous avez déjà résolu cette énigme"
+            }
+        
+        # Incrémenter les tentatives
+        progress.attempts += 1
+        
+        # Code correct
+        correct_code = "h3-h6-h5-h10"
+        
+        if hieroglyph_code == correct_code:
+            progress.is_solved = True
+            progress.solved_at = datetime.now()
+            progress.points_earned = 300
+            
+            # Mettre à jour le score de l'équipe
+            team = db.query(Team).filter(Team.id == team_id).first()
+            if team:
+                team.score += progress.points_earned
+            
+            db.commit()
+            
+            # Diffuser la progression
+            await self.broadcast_progress(team_id, db)
+            
+            return {
+                "success": True,
+                "message": "🎉 Bravo ! Vous avez correctement identifié SEKHMET !",
+                "info": "Sekhmet était la déesse guerrière égyptienne, fille du dieu soleil Rê.",
+                "points": progress.points_earned
+            }
+        else:
+            db.commit()
+            return {
+                "success": False,
+                "message": "❌ Ce n'est pas la bonne séquence de hiéroglyphes. Vérifiez avec Équipe 1 !",
+                "attempted_code": hieroglyph_code
+            }
 
-    async def broadcast_message(self, message: Dict):
-        for user_id in self.active_connections:
-            if user_id in self.active_connections:
-                await self.active_connections[user_id].send_json({
-                    "type": "chat_message",
-                    "message": message
-                })
+    async def handle_button_click(self, team_id: str, player_id: str, db: Session):
+        """Gère le clic sur le bouton"""
+        other_user = "team1" if player_id == "team2" else "team2"
 
-    async def handle_button_click(self, user_id: str):
-        other_user = "user1" if user_id == "user2" else "user2"
-        self.button_states[other_user] = True
-        self.button_states[user_id] = False
-        await self.broadcast_button_states()
+        # Récupérer les états des boutons
+        current_state = db.query(ButtonState).filter(
+            ButtonState.team_id == team_id,
+            ButtonState.player_id == player_id
+        ).first()
+        
+        other_state = db.query(ButtonState).filter(
+            ButtonState.team_id == team_id,
+            ButtonState.player_id == other_user
+        ).first()
 
-    async def handle_chat_message(self, user_id: str, text: str):
-        message = {
-            "user_id": user_id,
+        # Créer l'autre état s'il n'existe pas
+        if not other_state:
+            other_state = ButtonState(
+                team_id=team_id,
+                player_id=other_user,
+                is_enabled=False
+            )
+            db.add(other_state)
+
+        # Inverser les états
+        if current_state:
+            current_state.is_enabled = False
+            current_state.updated_at = datetime.now()
+        
+        other_state.is_enabled = True
+        other_state.updated_at = datetime.now()
+        
+        db.commit()
+
+        # Diffuser les nouveaux états
+        await self.broadcast_button_states(team_id, db)
+
+    async def handle_chat_message(self, team_id: str, player_id: str, text: str, db: Session):
+        """Gère l'envoi d'un message de chat"""
+        # Sauvegarder le message dans la BDD
+        chat_message = ChatMessage(
+            team_id=team_id,
+            player_id=player_id,
+            message=text,
+            timestamp=datetime.now()
+        )
+        db.add(chat_message)
+        db.commit()
+
+        message_dict = {
+            "user_id": player_id,
             "text": text,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": chat_message.timestamp.isoformat()
         }
-        self.chat_history.append(message)
-        if len(self.chat_history) > 100:
-            self.chat_history = self.chat_history[-100:]
-        await self.broadcast_message(message)
+
+        # Diffuser le message
+        await self.broadcast_message(team_id, message_dict)
+
 
 
 manager = GameManager()
 
 
+@app.on_event("startup")
+async def startup_event():
+    """Initialiser la base de données au démarrage"""
+    init_db()
+    print("✅ Base de données initialisée")
+
+
 @app.websocket("/ws/{team_id}/{player_id}")
-async def websocket_endpoint(websocket: WebSocket, team_id: str, player_id: str):
-    await manager.connect(websocket, player_id)
+async def websocket_endpoint(
+    websocket: WebSocket,
+    team_id: str,
+    player_id: str,
+    db: Session = Depends(get_db)
+):
+    await manager.connect(websocket, team_id, player_id, db)
 
     try:
         while True:
@@ -318,35 +500,63 @@ async def websocket_endpoint(websocket: WebSocket, team_id: str, player_id: str)
 
             if data.get("action") == "validate_chardin":
                 result = await manager.validate_chardin(
+                    team_id,
                     player_id,
-                    data.get("code", "")
+                    data.get("code", ""),
+                    db
                 )
                 await websocket.send_json({
                     "type": "chardin_result",
                     "result": result
                 })
-
             elif data.get("action") == "validate_sekhmet":
-                hieroglyph_code = data.get("hieroglyph_code")
-                result = await manager.validate_sekhmet(player_id, hieroglyph_code)
+                result = await manager.validate_sekhmet(
+                    team_id,
+                    player_id,
+                    data.get("hieroglyph_code", ""),
+                    db
+                )
                 await websocket.send_json({
                     "type": "sekhmet_result",
                     "result": result
                 })
-
             elif data.get("action") == "button_click":
-                await manager.handle_button_click(player_id)
+                await manager.handle_button_click(team_id, player_id, db)
 
             elif data.get("action") == "send_message":
                 message_text = data.get("message", "")
                 if message_text.strip():
-                    await manager.handle_chat_message(player_id, message_text)
+                    await manager.handle_chat_message(team_id, player_id, message_text, db)
 
     except WebSocketDisconnect:
-        manager.disconnect(player_id)
-        print(f"User {player_id} disconnected")
+        manager.disconnect(team_id, player_id, db)
+        print(f"Player {player_id} from team {team_id} disconnected")
 
 
 @app.get("/")
 def read_root():
-    return {"message": "Escape Game Musée - API"}
+    return {"message": "Escape Game Musée - API avec Base de Données"}
+
+
+@app.get("/teams/{team_id}/stats")
+def get_team_stats(team_id: str, db: Session = Depends(get_db)):
+    """Récupère les statistiques d'une équipe"""
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        return {"error": "Team not found"}
+    
+    progress = db.query(Progress).filter(Progress.team_id == team_id).all()
+    
+    return {
+        "team_id": team.id,
+        "score": team.score,
+        "puzzles_solved": sum(1 for p in progress if p.is_solved),
+        "total_puzzles": len(progress),
+        "created_at": team.created_at.isoformat() if team.created_at else None,
+        "progress": [{
+            "puzzle": p.puzzle_name,
+            "solved": p.is_solved,
+            "attempts": p.attempts,
+            "points": p.points_earned
+        } for p in progress]
+    }

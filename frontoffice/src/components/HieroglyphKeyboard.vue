@@ -34,7 +34,7 @@ const displayValue = computed(() => {
 })
 
 const canValidate = computed(() => {
-  return inputValue.value.length > 0 && props.playerId === 'user2'
+  return inputValue.value.length > 0 && props.playerId === 'team2'
 })
 
 function addHieroglyph(hieroglyph) {
@@ -74,7 +74,7 @@ function cancelConfirmation() {
       <div class="header-icon">𓁹</div>
       <div class="header-content">
         <h1>La Fille de Rê</h1>
-        <p class="subtitle">Énigme collaborative - Utilisateur 2</p>
+        <p class="subtitle">Énigme collaborative - Équipe 2</p>
       </div>
     </div>
 
@@ -88,7 +88,7 @@ function cancelConfirmation() {
         </div>
         <div class="instruction-item">
           <span class="step-number">2</span>
-          <p>L'Utilisateur 1 vous guide pour identifier la déesse Sekhmet</p>
+          <p>L'Équipe 1 vous guide pour identifier la déesse Sekhmet</p>
         </div>
         <div class="instruction-item">
           <span class="step-number">3</span>
@@ -105,7 +105,7 @@ function cancelConfirmation() {
     <div class="context-box">
       <div class="context-icon">💡</div>
       <div class="context-content">
-        <p><strong>Indice :</strong> User 1 a accès au nom de Sekhmet en hiéroglyphes</p>
+        <p><strong>Indice :</strong> Équipe 1 a accès au nom de Sekhmet en hiéroglyphes</p>
         <p><strong>Communication :</strong> Utilisez le chat pour qu'il vous décrive les symboles un par un</p>
         <p>Vous devez reproduire exactement la même séquence de hiéroglyphes</p>
       </div>
@@ -199,7 +199,7 @@ function cancelConfirmation() {
             <li>Utilisez "⌫ Effacer" pour retirer le dernier hiéroglyphe</li>
             <li>Utilisez "🗑️ Tout effacer" pour recommencer</li>
           </ul>
-          <p class="help-note">💬 Communiquez avec l'Utilisateur 1 pour confirmer la bonne divinité !</p>
+          <p class="help-note">💬 Communiquez avec l'Équipe 1 pour confirmer la bonne divinité !</p>
         </div>
       </details>
     </div>

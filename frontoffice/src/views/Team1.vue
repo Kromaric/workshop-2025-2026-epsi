@@ -3,8 +3,9 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import ChatBox from '../components/ChatBox.vue'
 import EnigmeChardin from '../components/EnigmeChardin.vue'
-import SchemaSekhmet from '../components/SchemaSekhmet.vue'  // ✅ Nouveau composant
+import SchemaSekhmet from '../components/SchemaSekhmet.vue'
 import SuccessPopup from '../components/SuccessPopup.vue'
+import ProgressPanel from '../components/ProgressPanel.vue'
 
 const router = useRouter()
 const isConnected = ref(false)
@@ -18,9 +19,15 @@ const messages = ref([])
 // Énigmes
 const sekhmetSchemas = ref(null)
 
+// Progression
+const teamScore = ref(0)
+const progress = ref([])
+
 let websocket = null
 
-const currentUserId = 'user1'
+const currentUserId = 'team1'
+const teamId = localStorage.getItem('teamId') || 'escape_team'
+const teamName = localStorage.getItem('teamName') || 'Escape Team'
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
 
 onMounted(() => {
@@ -34,7 +41,7 @@ onUnmounted(() => {
 })
 
 function connectWebSocket() {
-  const wsUrl = `${WS_URL}/ws/team1/${currentUserId}`
+  const wsUrl = `${WS_URL}/ws/${teamId}/${currentUserId}`
   websocket = new WebSocket(wsUrl)
 
   websocket.onopen = () => {
@@ -58,7 +65,6 @@ function connectWebSocket() {
         }, 3000)
       }
     } else if (data.type === 'sekhmet_schemas') {
-      // Recevoir les schémas Sekhmet
       sekhmetSchemas.value = data.enigma
     } else if (data.type === 'sekhmet_result') {
       const result = data.result
@@ -72,6 +78,9 @@ function connectWebSocket() {
       if (data.message && data.message.text) {
         messages.value = [...messages.value, data.message]
       }
+    } else if (data.type === 'progress') {
+      teamScore.value = data.data.team_score || 0
+      progress.value = data.data.puzzles || []
     }
   }
 
@@ -117,9 +126,13 @@ function goBack() {
     <!-- Barre du haut -->
     <div class="top-bar">
       <button @click="goBack" class="back-btn">← Retour</button>
+      <div class="team-info">
+        <span class="team-icon">🏆</span>
+        <span>{{ teamName }}</span>
+      </div>
       <div class="user-badge">
-        <span class="badge-icon">👤</span>
-        <span>Utilisateur 1</span>
+        <span class="badge-icon">👥</span>
+        <span>Équipe 1</span>
       </div>
       <div class="status" :class="{ connected: isConnected }">
         <span class="dot"></span>
@@ -151,16 +164,32 @@ function goBack() {
 
     <!-- Avant Chardin : Énigme Chardin -->
     <div v-if="!chardinSolved" class="content">
-      <EnigmeChardin
-        :player-id="currentUserId"
-        @submit-answer="handleChardinSubmit"
-      />
+      <div class="enigme-section">
+        <EnigmeChardin
+          :player-id="currentUserId"
+          @submit-answer="handleChardinSubmit"
+        />
+      </div>
+      
+      <div class="side-section">
+        <ProgressPanel
+          :team-score="teamScore"
+          :progress="progress"
+        />
+        
+        <ChatBox
+          :messages="messages"
+          :current-user-id="currentUserId"
+          :disabled="!isConnected"
+          @send-message="handleSendMessage"
+        />
+      </div>
     </div>
 
     <!-- Après Chardin : Schémas Sekhmet + Chat -->
     <div v-else class="interaction-content">
       <div class="main-grid">
-        <!-- Schémas Sekhmet (User1 = Guide) -->
+        <!-- Schémas Sekhmet (Team1 = Guide) -->
         <div class="schemas-section">
           <SchemaSekhmet
             v-if="sekhmetSchemas"
@@ -172,8 +201,13 @@ function goBack() {
           </div>
         </div>
 
-        <!-- Chat -->
-        <div class="chat-section">
+        <!-- Score + Chat -->
+        <div class="side-section">
+          <ProgressPanel
+            :team-score="teamScore"
+            :progress="progress"
+          />
+          
           <ChatBox
             :messages="messages"
             :current-user-id="currentUserId"
@@ -217,6 +251,22 @@ function goBack() {
 
 .back-btn:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+.team-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+  color: white;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+}
+
+.team-icon {
+  font-size: 1.25rem;
 }
 
 .user-badge {
@@ -325,8 +375,22 @@ function goBack() {
 }
 
 .content {
-  max-width: 600px;
+  max-width: 1400px;
   margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 2rem;
+}
+
+.enigme-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.side-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 /* Interface après Chardin */
@@ -341,8 +405,7 @@ function goBack() {
   gap: 2rem;
 }
 
-.schemas-section,
-.chat-section {
+.schemas-section {
   background: transparent;
 }
 
@@ -386,6 +449,7 @@ function goBack() {
     gap: 0.5rem;
   }
 
+  .content,
   .main-grid {
     grid-template-columns: 1fr;
   }
@@ -402,6 +466,7 @@ function goBack() {
   }
 
   .back-btn,
+  .team-info,
   .user-badge,
   .status {
     padding: 0.625rem 1.25rem;

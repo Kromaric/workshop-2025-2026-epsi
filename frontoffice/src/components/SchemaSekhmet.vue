@@ -22,7 +22,7 @@ function toggleDetails() {
       <div class="header-icon">🏺</div>
       <div class="header-content">
         <h1>{{ enigma.title }}</h1>
-        <p class="subtitle">Vous êtes le guide - Utilisateur 1</p>
+        <p class="subtitle">Vous êtes le guide - Équipe 1</p>
       </div>
     </div>
 
@@ -42,11 +42,11 @@ function toggleDetails() {
         </div>
         <div class="instruction-item">
           <span class="step-icon">💬</span>
-          <p>Guidez l'<strong>Utilisateur 2</strong> via le chat en décrivant les éléments distinctifs</p>
+          <p>Guidez l'<strong>Équipe 2</strong> via le chat en décrivant les éléments distinctifs</p>
         </div>
         <div class="instruction-item">
           <span class="step-icon">🤝</span>
-          <p>User 2 observe les sculptures réelles et <strong>valide la réponse</strong></p>
+          <p>Équipe 2 observe les sculptures réelles et <strong>valide la réponse</strong></p>
         </div>
       </div>
     </div>
@@ -100,7 +100,7 @@ function toggleDetails() {
       <details>
         <summary>💡 Comment guider efficacement ?</summary>
         <div class="help-content">
-          <p><strong>Conseils pour guider User 2 :</strong></p>
+          <p><strong>Conseils pour guider Équipe 2 :</strong></p>
           <ul>
             <li>Décrivez la <strong>forme de la tête</strong> (lionne, chacal, scarabée...)</li>
             <li>Mentionnez les <strong>attributs</strong> (disque solaire, sceptre...)</li>
