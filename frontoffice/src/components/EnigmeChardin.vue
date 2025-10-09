@@ -66,20 +66,12 @@ function handleKeyPress(event) {
 
       <div class="instruction-list">
         <div class="instruction-item">
-          <span class="number">1</span>
-          <span>Comptez les <strong>noix</strong> sur les tableaux</span>
+          <span>Bienvenue dans la salle dédiée à Jean Siméon Chardin, un peintre français du XVIIIè siècle.</span>
         </div>
         <div class="instruction-item">
-          <span class="number">2</span>
-          <span>Comptez les <strong>œufs</strong> sur les tableaux</span>
-        </div>
-        <div class="instruction-item">
-          <span class="number">3</span>
-          <span>Comptez les <strong>pêches</strong> sur les tableaux</span>
-        </div>
-        <div class="instruction-item">
-          <span class="number">4</span>
-          <span>Comptez les <strong>poires</strong> sur les tableaux</span>
+          <span>Avant de vous pencher sur ses œuvres voici un fait étonnant sur lui: Dans ses plus belles années,
+            Jean Siméon Charbin était végétarien et avait une étrange habitude, il mangeait ses plats seulement
+            dans leur ordre alphabétique...</span>
         </div>
       </div>
 
