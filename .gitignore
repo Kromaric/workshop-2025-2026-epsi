@@ -7,7 +7,10 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
+frontoffice/node_modules
+
+frontoffice/.env
+
 .DS_Store
 dist
 dist-ssr
@@ -28,3 +31,5 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+/backoffice/.venv/
