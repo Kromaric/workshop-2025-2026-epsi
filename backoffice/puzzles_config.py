@@ -72,6 +72,12 @@ def is_player_allowed(puzzle_name: str, player_id: str) -> bool:
     
     return player_id in restricted_to
 
+# Importer la config Sekhmet
+from sekhmet_config import SEKHMET_ENIGMA
+
+# Ajouter dans PUZZLES_CONFIG
+PUZZLES_CONFIG["sekhmet"] = SEKHMET_ENIGMA
+
 
 # Exemple d'utilisation dans main.py:
 """

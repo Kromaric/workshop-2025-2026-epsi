@@ -1,20 +1,29 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import EnigmeChardin from '../components/EnigmeChardin.vue'
 import SuccessPopup from '../components/SuccessPopup.vue'
 import ChatBox from '../components/ChatBox.vue'
 import ProgressPanel from '../components/ProgressPanel.vue'
+import SchemaSekhmet from '../components/SchemaSekhmet.vue'
 
 const router = useRouter()
 const isConnected = ref(false)
-const showSuccess = ref(false)
-const showSuccessPopup = ref(false)
 const showError = ref(false)
 const resultMessage = ref('')
 const enigmaSolved = ref(false)
 const messages = ref([])
 const isButtonEnabled = ref(false)
+
+// Chardin
+const chardinSolved = ref(false)
+const showSuccessPopup = ref(false)
+
+// Sekhmet
+const sekhmetUnlocked = ref(false)
+const sekhmetEnigma = ref(null)
+const showSekhmetSuccess = ref(false)
+const successMessage = ref('')
 
 // Progression
 const teamScore = ref(0)
@@ -48,21 +57,27 @@ function connectWebSocket() {
 
   websocket.onmessage = (event) => {
     const data = JSON.parse(event.data)
-
+    
     if (data.type === 'chardin_result') {
       const result = data.result
       resultMessage.value = result.message
 
       if (result.success) {
-        // Énigme résolue : afficher le popup
+        chardinSolved.value = true
         enigmaSolved.value = true
         showSuccessPopup.value = true
+        loadSekhmetEnigma()
       } else {
-        // Mauvaise réponse
         showError.value = true
         setTimeout(() => {
           showError.value = false
         }, 3000)
+      }
+    } else if (data.type === 'sekhmet_result') {
+      const result = data.result
+      if (result.success) {
+        showSekhmetSuccess.value = true
+        successMessage.value = result.message
       }
     } else if (data.type === 'button_state') {
       isButtonEnabled.value = data.enabled
@@ -73,7 +88,6 @@ function connectWebSocket() {
         messages.value = [...messages.value, data.message]
       }
     } else if (data.type === 'progress') {
-      // Mise à jour de la progression
       teamScore.value = data.data.team_score || 0
       progress.value = data.data.puzzles || []
     }
@@ -91,6 +105,78 @@ function handleChardinSubmit(data) {
       action: 'validate_chardin',
       code: data.code
     }))
+  }
+}
+
+function loadSekhmetEnigma() {
+  // TODO: Charger depuis le backend via WebSocket
+  // Pour l'instant, on peut hard-coder les données
+  sekhmetEnigma.value = {
+    title: "La Fille de Rê",
+    riddle: "Suis la fille du soleil à travers les chemins dorés, écoute le murmure de ses pas sur la terre chaude, car elle seule connaît les secrets oubliés et t'indiquera la voie à suivre vers ta destinée.",
+    "divinities": [
+        {
+            "id": "sekhmet",
+            "name": "Sekhmet",
+            "name_hieroglyphics": "𓌂𓅓𓏏𓆗",
+            "description": "Déesse guerrière à tête de lionne",
+            "distinctive_features": [
+                "Tête de lionne avec crinière",
+                "Corps de femme debout",
+                "Disque solaire rouge sur la tête",
+                "Sceptre ouas dans la main",
+                "Robe longue moulante",
+                "Attitude puissante et majestueuse"
+            ],
+            "image_url": "/800px-Sekhmet.png"
+        },
+        {
+            "id": "anubis",
+            "name": "Anubis",
+            "name_hieroglyphics": "𓇋𓈖𓊪𓅱",
+            "description": "Dieu à tête de chacal",
+            "distinctive_features": [
+                "Tête de chacal noir",
+                "Longues oreilles pointues",
+                "Corps d'homme debout",
+                "Pagne court",
+                "Souvent avec ankh ou sceptre",
+                "Gardien des morts"
+            ],
+            "image_url": "/800px-Anubis_standing.png"
+        },
+        {
+            "id": "khepri",
+            "name": "Khépri",
+            "name_hieroglyphics": "𓆣𓂋𓇋",
+            "description": "Dieu à tête de scarabée",
+            "distinctive_features": [
+                "Tête de scarabée",
+                "Corps humain masculin",
+                "Scarabée complet sur la tête",
+                "Symbolise le soleil levant",
+                "Souvent avec disque solaire",
+                "Dieu du renouveau"
+            ],
+            "image_url": "/800px-Khepri.png"
+        },
+        {
+            "id": "set",
+            "name": "Seth",
+            "name_hieroglyphics": "𓃩𓏏𓁀",
+            "description": "Dieu à tête d'animal fantastique",
+            "distinctive_features": [
+                "Tête d'animal mystérieux (âne/tamanoir)",
+                "Longues oreilles carrées dressées",
+                "Museau allongé et recourbé",
+                "Corps d'homme",
+                "Dieu du chaos et des tempêtes",
+                "Souvent avec sceptre ouas"
+            ],
+            "image_url": "/800px-Set.png"
+        }
+    ]
+
   }
 }
 
@@ -112,12 +198,15 @@ function handleSendMessage(messageText) {
 }
 
 function handleContinue() {
-  // Fermer le popup et afficher l'interface d'interaction
   showSuccessPopup.value = false
+  sekhmetUnlocked.value = true
+}
+
+function closeSekhmetSuccess() {
+  showSekhmetSuccess.value = false
 }
 
 function goBack() {
-  // Déconnecter avant de retourner
   if (websocket) {
     websocket.close()
     websocket = null
@@ -152,7 +241,15 @@ function goBack() {
       </div>
     </transition>
 
-    <!-- Popup de succès -->
+    <!-- Notification succès Sekhmet -->
+    <transition name="slide-down">
+      <div v-if="showSekhmetSuccess" class="notification success">
+        <span>{{ successMessage }}</span>
+        <button @click="closeSekhmetSuccess" class="close-notif">×</button>
+      </div>
+    </transition>
+
+    <!-- Popup de succès Chardin -->
     <SuccessPopup
       :show="showSuccessPopup"
       @continue="handleContinue"
@@ -168,8 +265,8 @@ function goBack() {
           @submit-answer="handleChardinSubmit"
         />
       </div>
-      
-      <!-- Colonne 2 : Score + Chat (dans la même colonne) -->
+            
+      <!-- Colonne 2 : Score + Chat -->
       <div class="score-chat-column">
         <ProgressPanel
           :team-score="teamScore"
@@ -187,8 +284,20 @@ function goBack() {
 
     <!-- Interface d'interaction après résolution -->
     <div v-else class="interaction-content">
-      <!-- Colonne 1 : Score + Chat (dans la même colonne) -->
-      <div class="score-chat-column">
+      <!-- Énigme Sekhmet (Schémas pour team1) -->
+      <div v-if="sekhmetUnlocked" class="sekhmet-section">
+        <SchemaSekhmet 
+          v-if="sekhmetEnigma" 
+          :enigma="sekhmetEnigma" 
+        />
+        <div v-else class="loading-box">
+          <div class="loading-spinner">⏳</div>
+          <p>Chargement de l'énigme Sekhmet...</p>
+        </div>
+      </div>
+
+      <!-- Colonne Score + Chat + Bouton -->
+      <div class="side-column">
         <ProgressPanel
           :team-score="teamScore"
           :progress="progress"
@@ -200,10 +309,8 @@ function goBack() {
           :disabled="!isConnected"
           @send-message="handleSendMessage"
         />
-      </div>
 
-      <!-- Colonne 2 : Section Bouton -->
-      <div class="button-section">
+        <!-- Section Bouton -->
         <div class="section-card">
           <h2>🔘 Interaction</h2>
 
@@ -222,7 +329,7 @@ function goBack() {
             class="action-button"
             :class="{ enabled: isButtonEnabled }"
           >
-            {{ isButtonEnabled ? 'Activer Team 2' : 'En attente...' }}
+            {{ isButtonEnabled ? 'Activer Équipe 2' : 'En attente...' }}
           </button>
 
           <p class="info-text">
@@ -347,6 +454,35 @@ function goBack() {
   color: white;
 }
 
+.notification.success {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.close-notif {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.close-notif:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 .slide-down-enter-active,
 .slide-down-leave-active {
   transition: all 0.4s ease;
@@ -388,8 +524,48 @@ function goBack() {
   max-width: 1400px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 2fr 1fr;
   gap: 2rem;
+}
+
+.sekhmet-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.side-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.loading-box {
+  background: white;
+  border-radius: 2rem;
+  padding: 4rem 2rem;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.loading-spinner {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-box p {
+  margin: 0;
+  color: #64748b;
+  font-size: 1.125rem;
 }
 
 .section-card {

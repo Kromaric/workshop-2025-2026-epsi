@@ -246,63 +246,129 @@ class GameManager:
                 "message": "Code incorrect. Observez plus attentivement les tableaux."
             }
 
-    async def handle_button_click(self, team_id: str, player_id: str, db: Session):
-        """Gère le clic sur le bouton"""
-        other_user = "team1" if player_id == "team2" else "team2"
-
-        # Récupérer les états des boutons
-        current_state = db.query(ButtonState).filter(
-            ButtonState.team_id == team_id,
-            ButtonState.player_id == player_id
+    async def validate_sekhmet(self, team_id: str, player_id: str, hieroglyph_code: str, db: Session):
+        """Valide l'énigme Sekhmet"""
+        
+        # Vérifier que c'est team2 qui valide
+        if player_id != "team2":
+            return {
+                "success": False,
+                "message": "Cette énigme doit être validée par Équipe 2"
+            }
+        
+        # Vérifier si déjà résolu
+        progress = db.query(Progress).filter(
+            Progress.team_id == team_id,
+            Progress.puzzle_name == "sekhmet"
         ).first()
         
-        other_state = db.query(ButtonState).filter(
-            ButtonState.team_id == team_id,
-            ButtonState.player_id == other_user
-        ).first()
-
-        # Créer l'autre état s'il n'existe pas
-        if not other_state:
-            other_state = ButtonState(
+        if not progress:
+            progress = Progress(
                 team_id=team_id,
-                player_id=other_user,
-                is_enabled=False
+                player_id=player_id,
+                puzzle_name="sekhmet"
             )
-            db.add(other_state)
-
-        # Inverser les états
-        if current_state:
-            current_state.is_enabled = False
-            current_state.updated_at = datetime.now()
+            db.add(progress)
+            db.commit()
         
-        other_state.is_enabled = True
-        other_state.updated_at = datetime.now()
+        if progress.is_solved:
+            return {
+                "success": False,
+                "message": "Vous avez déjà résolu cette énigme"
+            }
         
-        db.commit()
+        # Incrémenter les tentatives
+        progress.attempts += 1
+        
+        # Code correct
+        correct_code = "h3-h6-h5-h10"
+        
+        if hieroglyph_code == correct_code:
+            progress.is_solved = True
+            progress.solved_at = datetime.now()
+            progress.points_earned = 300
+            
+            # Mettre à jour le score de l'équipe
+            team = db.query(Team).filter(Team.id == team_id).first()
+            if team:
+                team.score += progress.points_earned
+            
+            db.commit()
+            
+            # Diffuser la progression
+            await self.broadcast_progress(team_id, db)
+            
+            return {
+                "success": True,
+                "message": "🎉 Bravo ! Vous avez correctement identifié SEKHMET !",
+                "info": "Sekhmet était la déesse guerrière égyptienne, fille du dieu soleil Rê.",
+                "points": progress.points_earned
+            }
+        else:
+            db.commit()
+            return {
+                "success": False,
+                "message": "❌ Ce n'est pas la bonne séquence de hiéroglyphes. Vérifiez avec Équipe 1 !",
+                "attempted_code": hieroglyph_code
+            }
 
-        # Diffuser les nouveaux états
-        await self.broadcast_button_states(team_id, db)
+        async def handle_button_click(self, team_id: str, player_id: str, db: Session):
+            """Gère le clic sur le bouton"""
+            other_user = "team1" if player_id == "team2" else "team2"
 
-    async def handle_chat_message(self, team_id: str, player_id: str, text: str, db: Session):
-        """Gère l'envoi d'un message de chat"""
-        # Sauvegarder le message dans la BDD
-        chat_message = ChatMessage(
-            team_id=team_id,
-            player_id=player_id,
-            message=text,
-            timestamp=datetime.now()
-        )
-        db.add(chat_message)
-        db.commit()
+            # Récupérer les états des boutons
+            current_state = db.query(ButtonState).filter(
+                ButtonState.team_id == team_id,
+                ButtonState.player_id == player_id
+            ).first()
+            
+            other_state = db.query(ButtonState).filter(
+                ButtonState.team_id == team_id,
+                ButtonState.player_id == other_user
+            ).first()
 
-        message_dict = {
-            "user_id": player_id,
-            "text": text,
-            "timestamp": chat_message.timestamp.isoformat()
-        }
+            # Créer l'autre état s'il n'existe pas
+            if not other_state:
+                other_state = ButtonState(
+                    team_id=team_id,
+                    player_id=other_user,
+                    is_enabled=False
+                )
+                db.add(other_state)
 
-        # Diffuser le message
-        await self.broadcast_message(team_id, message_dict)
+            # Inverser les états
+            if current_state:
+                current_state.is_enabled = False
+                current_state.updated_at = datetime.now()
+            
+            other_state.is_enabled = True
+            other_state.updated_at = datetime.now()
+            
+            db.commit()
+
+            # Diffuser les nouveaux états
+            await self.broadcast_button_states(team_id, db)
+
+        async def handle_chat_message(self, team_id: str, player_id: str, text: str, db: Session):
+            """Gère l'envoi d'un message de chat"""
+            # Sauvegarder le message dans la BDD
+            chat_message = ChatMessage(
+                team_id=team_id,
+                player_id=player_id,
+                message=text,
+                timestamp=datetime.now()
+            )
+            db.add(chat_message)
+            db.commit()
+
+            message_dict = {
+                "user_id": player_id,
+                "text": text,
+                "timestamp": chat_message.timestamp.isoformat()
+            }
+
+            # Diffuser le message
+            await self.broadcast_message(team_id, message_dict)
 
 
 manager = GameManager()
@@ -339,7 +405,17 @@ async def websocket_endpoint(
                     "type": "chardin_result",
                     "result": result
                 })
-
+            elif data.get("action") == "validate_sekhmet":
+                result = await manager.validate_sekhmet(
+                    team_id,
+                    player_id,
+                    data.get("hieroglyph_code", ""),
+                    db
+                )
+                await websocket.send_json({
+                    "type": "sekhmet_result",
+                    "result": result
+                })
             elif data.get("action") == "button_click":
                 await manager.handle_button_click(team_id, player_id, db)
 
