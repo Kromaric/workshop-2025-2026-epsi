@@ -185,6 +185,24 @@ class GameManager:
             if (team_id, player.id) in self.active_connections:
                 await self.send_progress(team_id, player.id, db)
 
+    async def send_sekhmet_schemas(self, team_id: str, db: Session):
+        """Envoie les schémas Sekhmet après résolution de Chardin"""
+        from sekhmet_config import SEKHMET_ENIGMA
+        
+        # Envoyer les schémas complets à team1 (guide)
+        if (team_id, "team1") in self.active_connections:
+            await self.active_connections[(team_id, "team1")].send_json({
+                "type": "sekhmet_schemas",
+                "enigma": SEKHMET_ENIGMA
+            })
+        
+        # Envoyer la sélection des divinités à team2 (validateur)
+        if (team_id, "team2") in self.active_connections:
+            await self.active_connections[(team_id, "team2")].send_json({
+                "type": "sekhmet_selection",
+                "divinities": [{"id": d["id"], "name": d["name"]} for d in SEKHMET_ENIGMA["divinities"]]
+            })
+
     async def validate_chardin(self, team_id: str, player_id: str, code: str, db: Session):
         """Valide le code Chardin"""
         correct_code = "3563"
@@ -233,6 +251,9 @@ class GameManager:
 
             # Diffuser la progression
             await self.broadcast_progress(team_id, db)
+            
+            # Envoyer les schémas Sekhmet à team1
+            await self.send_sekhmet_schemas(team_id, db)
 
             return {
                 "success": True,
@@ -312,63 +333,64 @@ class GameManager:
                 "attempted_code": hieroglyph_code
             }
 
-        async def handle_button_click(self, team_id: str, player_id: str, db: Session):
-            """Gère le clic sur le bouton"""
-            other_user = "team1" if player_id == "team2" else "team2"
+    async def handle_button_click(self, team_id: str, player_id: str, db: Session):
+        """Gère le clic sur le bouton"""
+        other_user = "team1" if player_id == "team2" else "team2"
 
-            # Récupérer les états des boutons
-            current_state = db.query(ButtonState).filter(
-                ButtonState.team_id == team_id,
-                ButtonState.player_id == player_id
-            ).first()
-            
-            other_state = db.query(ButtonState).filter(
-                ButtonState.team_id == team_id,
-                ButtonState.player_id == other_user
-            ).first()
+        # Récupérer les états des boutons
+        current_state = db.query(ButtonState).filter(
+            ButtonState.team_id == team_id,
+            ButtonState.player_id == player_id
+        ).first()
+        
+        other_state = db.query(ButtonState).filter(
+            ButtonState.team_id == team_id,
+            ButtonState.player_id == other_user
+        ).first()
 
-            # Créer l'autre état s'il n'existe pas
-            if not other_state:
-                other_state = ButtonState(
-                    team_id=team_id,
-                    player_id=other_user,
-                    is_enabled=False
-                )
-                db.add(other_state)
-
-            # Inverser les états
-            if current_state:
-                current_state.is_enabled = False
-                current_state.updated_at = datetime.now()
-            
-            other_state.is_enabled = True
-            other_state.updated_at = datetime.now()
-            
-            db.commit()
-
-            # Diffuser les nouveaux états
-            await self.broadcast_button_states(team_id, db)
-
-        async def handle_chat_message(self, team_id: str, player_id: str, text: str, db: Session):
-            """Gère l'envoi d'un message de chat"""
-            # Sauvegarder le message dans la BDD
-            chat_message = ChatMessage(
+        # Créer l'autre état s'il n'existe pas
+        if not other_state:
+            other_state = ButtonState(
                 team_id=team_id,
-                player_id=player_id,
-                message=text,
-                timestamp=datetime.now()
+                player_id=other_user,
+                is_enabled=False
             )
-            db.add(chat_message)
-            db.commit()
+            db.add(other_state)
 
-            message_dict = {
-                "user_id": player_id,
-                "text": text,
-                "timestamp": chat_message.timestamp.isoformat()
-            }
+        # Inverser les états
+        if current_state:
+            current_state.is_enabled = False
+            current_state.updated_at = datetime.now()
+        
+        other_state.is_enabled = True
+        other_state.updated_at = datetime.now()
+        
+        db.commit()
 
-            # Diffuser le message
-            await self.broadcast_message(team_id, message_dict)
+        # Diffuser les nouveaux états
+        await self.broadcast_button_states(team_id, db)
+
+    async def handle_chat_message(self, team_id: str, player_id: str, text: str, db: Session):
+        """Gère l'envoi d'un message de chat"""
+        # Sauvegarder le message dans la BDD
+        chat_message = ChatMessage(
+            team_id=team_id,
+            player_id=player_id,
+            message=text,
+            timestamp=datetime.now()
+        )
+        db.add(chat_message)
+        db.commit()
+
+        message_dict = {
+            "user_id": player_id,
+            "text": text,
+            "timestamp": chat_message.timestamp.isoformat()
+        }
+
+        # Diffuser le message
+        await self.broadcast_message(team_id, message_dict)
+
 
 
 manager = GameManager()

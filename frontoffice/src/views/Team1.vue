@@ -1,29 +1,23 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import EnigmeChardin from '../components/EnigmeChardin.vue'
-import SuccessPopup from '../components/SuccessPopup.vue'
 import ChatBox from '../components/ChatBox.vue'
-import ProgressPanel from '../components/ProgressPanel.vue'
+import EnigmeChardin from '../components/EnigmeChardin.vue'
 import SchemaSekhmet from '../components/SchemaSekhmet.vue'
+import SuccessPopup from '../components/SuccessPopup.vue'
+import ProgressPanel from '../components/ProgressPanel.vue'
 
 const router = useRouter()
 const isConnected = ref(false)
 const showError = ref(false)
-const resultMessage = ref('')
-const enigmaSolved = ref(false)
-const messages = ref([])
-const isButtonEnabled = ref(false)
-
-// Chardin
-const chardinSolved = ref(false)
 const showSuccessPopup = ref(false)
-
-// Sekhmet
-const sekhmetUnlocked = ref(false)
-const sekhmetEnigma = ref(null)
 const showSekhmetSuccess = ref(false)
-const successMessage = ref('')
+const resultMessage = ref('')
+const chardinSolved = ref(false)
+const messages = ref([])
+
+// Énigmes
+const sekhmetSchemas = ref(null)
 
 // Progression
 const teamScore = ref(0)
@@ -52,35 +46,32 @@ function connectWebSocket() {
 
   websocket.onopen = () => {
     isConnected.value = true
-    console.log('✅ Connecté en tant que', currentUserId, 'équipe', teamId)
   }
 
   websocket.onmessage = (event) => {
     const data = JSON.parse(event.data)
-    
+
     if (data.type === 'chardin_result') {
       const result = data.result
       resultMessage.value = result.message
 
       if (result.success) {
         chardinSolved.value = true
-        enigmaSolved.value = true
         showSuccessPopup.value = true
-        loadSekhmetEnigma()
       } else {
         showError.value = true
         setTimeout(() => {
           showError.value = false
         }, 3000)
       }
+    } else if (data.type === 'sekhmet_schemas') {
+      sekhmetSchemas.value = data.enigma
     } else if (data.type === 'sekhmet_result') {
       const result = data.result
       if (result.success) {
         showSekhmetSuccess.value = true
-        successMessage.value = result.message
+        resultMessage.value = result.message
       }
-    } else if (data.type === 'button_state') {
-      isButtonEnabled.value = data.enabled
     } else if (data.type === 'chat_history') {
       messages.value = data.messages || []
     } else if (data.type === 'chat_message') {
@@ -108,86 +99,6 @@ function handleChardinSubmit(data) {
   }
 }
 
-function loadSekhmetEnigma() {
-  // TODO: Charger depuis le backend via WebSocket
-  // Pour l'instant, on peut hard-coder les données
-  sekhmetEnigma.value = {
-    title: "La Fille de Rê",
-    riddle: "Suis la fille du soleil à travers les chemins dorés, écoute le murmure de ses pas sur la terre chaude, car elle seule connaît les secrets oubliés et t'indiquera la voie à suivre vers ta destinée.",
-    "divinities": [
-        {
-            "id": "sekhmet",
-            "name": "Sekhmet",
-            "name_hieroglyphics": "𓌂𓅓𓏏𓆗",
-            "description": "Déesse guerrière à tête de lionne",
-            "distinctive_features": [
-                "Tête de lionne avec crinière",
-                "Corps de femme debout",
-                "Disque solaire rouge sur la tête",
-                "Sceptre ouas dans la main",
-                "Robe longue moulante",
-                "Attitude puissante et majestueuse"
-            ],
-            "image_url": "/800px-Sekhmet.png"
-        },
-        {
-            "id": "anubis",
-            "name": "Anubis",
-            "name_hieroglyphics": "𓇋𓈖𓊪𓅱",
-            "description": "Dieu à tête de chacal",
-            "distinctive_features": [
-                "Tête de chacal noir",
-                "Longues oreilles pointues",
-                "Corps d'homme debout",
-                "Pagne court",
-                "Souvent avec ankh ou sceptre",
-                "Gardien des morts"
-            ],
-            "image_url": "/800px-Anubis_standing.png"
-        },
-        {
-            "id": "khepri",
-            "name": "Khépri",
-            "name_hieroglyphics": "𓆣𓂋𓇋",
-            "description": "Dieu à tête de scarabée",
-            "distinctive_features": [
-                "Tête de scarabée",
-                "Corps humain masculin",
-                "Scarabée complet sur la tête",
-                "Symbolise le soleil levant",
-                "Souvent avec disque solaire",
-                "Dieu du renouveau"
-            ],
-            "image_url": "/800px-Khepri.png"
-        },
-        {
-            "id": "set",
-            "name": "Seth",
-            "name_hieroglyphics": "𓃩𓏏𓁀",
-            "description": "Dieu à tête d'animal fantastique",
-            "distinctive_features": [
-                "Tête d'animal mystérieux (âne/tamanoir)",
-                "Longues oreilles carrées dressées",
-                "Museau allongé et recourbé",
-                "Corps d'homme",
-                "Dieu du chaos et des tempêtes",
-                "Souvent avec sceptre ouas"
-            ],
-            "image_url": "/800px-Set.png"
-        }
-    ]
-
-  }
-}
-
-function handleButtonClick() {
-  if (isButtonEnabled.value && websocket) {
-    websocket.send(JSON.stringify({
-      action: 'button_click'
-    }))
-  }
-}
-
 function handleSendMessage(messageText) {
   if (websocket && isConnected.value) {
     websocket.send(JSON.stringify({
@@ -199,7 +110,6 @@ function handleSendMessage(messageText) {
 
 function handleContinue() {
   showSuccessPopup.value = false
-  sekhmetUnlocked.value = true
 }
 
 function closeSekhmetSuccess() {
@@ -207,10 +117,6 @@ function closeSekhmetSuccess() {
 }
 
 function goBack() {
-  if (websocket) {
-    websocket.close()
-    websocket = null
-  }
   router.push('/')
 }
 </script>
@@ -244,7 +150,7 @@ function goBack() {
     <!-- Notification succès Sekhmet -->
     <transition name="slide-down">
       <div v-if="showSekhmetSuccess" class="notification success">
-        <span>{{ successMessage }}</span>
+        <span>{{ resultMessage }}</span>
         <button @click="closeSekhmetSuccess" class="close-notif">×</button>
       </div>
     </transition>
@@ -256,18 +162,16 @@ function goBack() {
       @close="showSuccessPopup = false"
     />
 
-    <!-- Contenu principal -->
-    <div v-if="!enigmaSolved" class="content">
-      <!-- Colonne 1 : Énigme Chardin -->
+    <!-- Avant Chardin : Énigme Chardin -->
+    <div v-if="!chardinSolved" class="content">
       <div class="enigme-section">
         <EnigmeChardin
           :player-id="currentUserId"
           @submit-answer="handleChardinSubmit"
         />
       </div>
-            
-      <!-- Colonne 2 : Score + Chat -->
-      <div class="score-chat-column">
+      
+      <div class="side-section">
         <ProgressPanel
           :team-score="teamScore"
           :progress="progress"
@@ -282,62 +186,34 @@ function goBack() {
       </div>
     </div>
 
-    <!-- Interface d'interaction après résolution -->
+    <!-- Après Chardin : Schémas Sekhmet + Chat -->
     <div v-else class="interaction-content">
-      <!-- Énigme Sekhmet (Schémas pour team1) -->
-      <div v-if="sekhmetUnlocked" class="sekhmet-section">
-        <SchemaSekhmet 
-          v-if="sekhmetEnigma" 
-          :enigma="sekhmetEnigma" 
-        />
-        <div v-else class="loading-box">
-          <div class="loading-spinner">⏳</div>
-          <p>Chargement de l'énigme Sekhmet...</p>
-        </div>
-      </div>
-
-      <!-- Colonne Score + Chat + Bouton -->
-      <div class="side-column">
-        <ProgressPanel
-          :team-score="teamScore"
-          :progress="progress"
-        />
-        
-        <ChatBox
-          :messages="messages"
-          :current-user-id="currentUserId"
-          :disabled="!isConnected"
-          @send-message="handleSendMessage"
-        />
-
-        <!-- Section Bouton -->
-        <div class="section-card">
-          <h2>🔘 Interaction</h2>
-
-          <div class="state-indicator" :class="{ active: isButtonEnabled }">
-            <div class="state-icon">
-              {{ isButtonEnabled ? '🔓' : '🔒' }}
-            </div>
-            <div class="state-text">
-              {{ isButtonEnabled ? 'Bouton Activé' : 'Bouton Désactivé' }}
-            </div>
+      <div class="main-grid">
+        <!-- Schémas Sekhmet (Team1 = Guide) -->
+        <div class="schemas-section">
+          <SchemaSekhmet
+            v-if="sekhmetSchemas"
+            :enigma="sekhmetSchemas"
+          />
+          <div v-else class="loading-box">
+            <div class="loading-spinner">⏳</div>
+            <p>Chargement des schémas...</p>
           </div>
+        </div>
 
-          <button
-            @click="handleButtonClick"
-            :disabled="!isButtonEnabled"
-            class="action-button"
-            :class="{ enabled: isButtonEnabled }"
-          >
-            {{ isButtonEnabled ? 'Activer Équipe 2' : 'En attente...' }}
-          </button>
-
-          <p class="info-text">
-            {{ isButtonEnabled
-              ? '✨ Cliquez pour activer le bouton de l\'Équipe 2'
-              : '⏳ Attendez que l\'Équipe 2 vous active'
-            }}
-          </p>
+        <!-- Score + Chat -->
+        <div class="side-section">
+          <ProgressPanel
+            :team-score="teamScore"
+            :progress="progress"
+          />
+          
+          <ChatBox
+            :messages="messages"
+            :current-user-id="currentUserId"
+            :disabled="!isConnected"
+            @send-message="handleSendMessage"
+          />
         </div>
       </div>
     </div>
@@ -498,7 +374,6 @@ function goBack() {
   transform: translateX(-50%) translateY(-20px);
 }
 
-/* Layout Desktop - 2 colonnes */
 .content {
   max-width: 1400px;
   margin: 0 auto;
@@ -512,31 +387,26 @@ function goBack() {
   flex-direction: column;
 }
 
-/* Colonne Score + Chat */
-.score-chat-column {
+.side-section {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
 
-/* Interface d'interaction - 2 colonnes */
+/* Interface après Chardin */
 .interaction-content {
   max-width: 1400px;
   margin: 0 auto;
+}
+
+.main-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 2rem;
 }
 
-.sekhmet-section {
-  display: flex;
-  flex-direction: column;
-}
-
-.side-column {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+.schemas-section {
+  background: transparent;
 }
 
 .loading-box {
@@ -568,93 +438,7 @@ function goBack() {
   font-size: 1.125rem;
 }
 
-.section-card {
-  background: white;
-  border-radius: 2rem;
-  padding: 2.5rem;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-}
-
-.section-card h2 {
-  text-align: center;
-  color: #1e293b;
-  font-size: 1.75rem;
-  margin: 0 0 2rem 0;
-}
-
-/* État du bouton */
-.state-indicator {
-  padding: 1.5rem;
-  border-radius: 1rem;
-  background: #fee;
-  border: 3px solid #fcc;
-  margin-bottom: 2rem;
-  text-align: center;
-  transition: all 0.3s;
-}
-
-.state-indicator.active {
-  background: #efe;
-  border-color: #8e8;
-}
-
-.state-icon {
-  font-size: 3rem;
-  margin-bottom: 0.75rem;
-}
-
-.state-text {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #c00;
-}
-
-.state-indicator.active .state-text {
-  color: #0a0;
-}
-
-/* Bouton d'action */
-.action-button {
-  width: 100%;
-  padding: 1.5rem;
-  font-size: 1.25rem;
-  font-weight: 700;
-  border: none;
-  border-radius: 1rem;
-  cursor: not-allowed;
-  background: #cbd5e1;
-  color: #94a3b8;
-  transition: all 0.3s;
-  margin-bottom: 1.5rem;
-}
-
-.action-button.enabled {
-  cursor: pointer;
-  background: linear-gradient(135deg, #667eea 0%, #4f46e5 100%);
-  color: white;
-}
-
-.action-button.enabled:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
-}
-
-.action-button.enabled:active {
-  transform: translateY(-1px);
-}
-
-.info-text {
-  text-align: center;
-  padding: 1rem;
-  background: #f1f5f9;
-  border-radius: 0.75rem;
-  color: #475569;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  margin: 0;
-}
-
-/* Responsive Mobile */
+/* Responsive */
 @media (max-width: 968px) {
   .page-container {
     padding: 1rem;
@@ -665,22 +449,28 @@ function goBack() {
     gap: 0.5rem;
   }
 
+  .content,
+  .main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .notification {
+    font-size: 1rem;
+    padding: 1rem 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-container {
+    padding: 0.75rem;
+  }
+
   .back-btn,
   .team-info,
   .user-badge,
   .status {
     padding: 0.625rem 1.25rem;
     font-size: 0.95rem;
-  }
-
-  .content,
-  .interaction-content {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-
-  .section-card {
-    padding: 2rem 1.5rem;
   }
 }
 </style>

@@ -12,14 +12,14 @@ const props = defineProps({
   }
 })
 
-const totalPuzzles = computed(() => props.progress.length)
+const totalPuzzles = 2
 const solvedPuzzles = computed(() => 
   props.progress.filter(p => p.is_solved).length
 )
 
 const progressPercentage = computed(() => {
   if (totalPuzzles.value === 0) return 0
-  return Math.round((solvedPuzzles.value / totalPuzzles.value) * 100)
+  return Math.round((solvedPuzzles.value / totalPuzzles) * 100)
 })
 </script>
 

@@ -2,16 +2,21 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import ChatBox from '../components/ChatBox.vue'
-import ProgressPanel from '../components/ProgressPanel.vue'
 import HieroglyphKeyboard from '../components/HieroglyphKeyboard.vue'
+import ProgressPanel from '../components/ProgressPanel.vue'
 
 const router = useRouter()
 const isConnected = ref(false)
 const messages = ref([])
 const isButtonEnabled = ref(false)
-const sekhmметUnlocked = ref(false)
-const showSekhmметSuccess = ref(false)
-const successMessage = ref('')
+
+// Sekhmet
+const sekhmetDivinities = ref([])
+const showSekhmetSelection = ref(false)
+const showSekhmetSuccess = ref(false)
+const sekhmetResultMessage = ref('')
+const showError = ref(false)
+const errorMessage = ref('')
 
 // Progression
 const teamScore = ref(0)
@@ -36,71 +41,51 @@ onUnmounted(() => {
 
 function connectWebSocket() {
   const wsUrl = `${WS_URL}/ws/${teamId}/${currentUserId}`
-  console.log('🔌 Connexion WebSocket à:', wsUrl)
-
   websocket = new WebSocket(wsUrl)
 
   websocket.onopen = () => {
     isConnected.value = true
-    console.log('✅ Team2 connecté en tant que', currentUserId, 'équipe', teamId)
   }
 
   websocket.onmessage = (event) => {
-    console.log('📨 Message reçu:', event.data)
+    const data = JSON.parse(event.data)
 
-    try {
-      const data = JSON.parse(event.data)
-      if (data.type === 'chardin_result') {
-        const result = data.result
-        if (result.success) {
-          sekhmметUnlocked.value = true
-        }
-      } else if (data.type === 'sekhmet_result') {
-        const result = data.result
-        if (result.success) {
-          showSekhmметSuccess.value = true
-          successMessage.value = result.message
-        }
+    if (data.type === 'button_state') {
+      isButtonEnabled.value = data.enabled
+    } else if (data.type === 'chat_history') {
+      messages.value = data.messages || []
+    } else if (data.type === 'chat_message') {
+      if (data.message && data.message.text) {
+        messages.value = [...messages.value, data.message]
       }
-
-      if (data.type === 'button_state') {
-        console.log('🔘 État bouton:', data.enabled)
-        isButtonEnabled.value = data.enabled
-
-      } else if (data.type === 'chat_history') {
-        console.log('📜 Historique chat:', data.messages)
-        messages.value = data.messages || []
-
-      } else if (data.type === 'chat_message') {
-        console.log('💬 Nouveau message:', data.message)
-        if (data.message && data.message.text) {
-          messages.value = [...messages.value, data.message]
-        }
-      } else if (data.type === 'progress') {
-        // Mise à jour de la progression
-        console.log('📊 Progression:', data.data)
-        teamScore.value = data.data.team_score || 0
-        progress.value = data.data.puzzles || []
+    } else if (data.type === 'sekhmet_selection') {
+      sekhmetDivinities.value = data.divinities
+      showSekhmetSelection.value = true
+    } else if (data.type === 'sekhmet_result') {
+      const result = data.result
+      if (result.success) {
+        showSekhmetSuccess.value = true
+        sekhmetResultMessage.value = result.message
+      } else {
+        showError.value = true
+        errorMessage.value = result.message
+        setTimeout(() => {
+          showError.value = false
+        }, 3000)
       }
-    } catch (error) {
-      console.error('❌ Erreur parsing:', error)
+    } else if (data.type === 'progress') {
+      teamScore.value = data.data.team_score || 0
+      progress.value = data.data.puzzles || []
     }
   }
 
   websocket.onclose = () => {
     isConnected.value = false
-    console.log('❌ Team2 déconnecté')
     setTimeout(connectWebSocket, 3000)
-  }
-
-  websocket.onerror = (error) => {
-    console.error('❌ WebSocket error:', error)
   }
 }
 
 function handleButtonClick() {
-  console.log('🖱️ Clic sur le bouton')
-
   if (isButtonEnabled.value && websocket) {
     websocket.send(JSON.stringify({
       action: 'button_click'
@@ -109,8 +94,6 @@ function handleButtonClick() {
 }
 
 function handleSendMessage(messageText) {
-  console.log('📤 Envoi du message:', messageText)
-
   if (websocket && isConnected.value) {
     websocket.send(JSON.stringify({
       action: 'send_message',
@@ -119,7 +102,7 @@ function handleSendMessage(messageText) {
   }
 }
 
-function validateSekhmet(data) {
+function handleSekhmetValidate(data) {
   if (websocket && isConnected.value) {
     websocket.send(JSON.stringify({
       action: 'validate_sekhmet',
@@ -128,16 +111,11 @@ function validateSekhmet(data) {
   }
 }
 
-function closeSekhmетSuccess() {
-  showSekhmметSuccess.value = false
+function closeSekhmetSuccess() {
+  showSekhmetSuccess.value = false
 }
 
 function goBack() {
-  // Déconnecter avant de retourner
-  if (websocket) {
-    websocket.close()
-    websocket = null
-  }
   router.push('/')
 }
 </script>
@@ -163,40 +141,25 @@ function goBack() {
       </div>
     </div>
 
+    <!-- Notification d'erreur -->
+    <transition name="slide-down">
+      <div v-if="showError" class="notification error">
+        {{ errorMessage }}
+      </div>
+    </transition>
+
+    <!-- Notification succès Sekhmet -->
+    <transition name="slide-down">
+      <div v-if="showSekhmetSuccess" class="notification success">
+        <span>{{ sekhmetResultMessage }}</span>
+        <button @click="closeSekhmetSuccess" class="close-notif">×</button>
+      </div>
+    </transition>
+
     <!-- Contenu principal -->
     <div class="main-content">
-      <!-- Colonne 1 : Score + Chat (dans la même colonne) -->
-      <div class="score-chat-column">
-        <ProgressPanel
-          :team-score="teamScore"
-          :progress="progress"
-        />
-        
-        <ChatBox
-          :messages="messages"
-          :current-user-id="currentUserId"
-          :disabled="!isConnected"
-          @send-message="handleSendMessage"
-        />
-      </div>
-      <!-- Notification succès Sekhmet -->
-      <transition name="slide-down">
-        <div v-if="showSekhmметSuccess" class="notification success">
-          <span>{{ successMessage }}</span>
-          <button @click="closeSekhmetSuccess" class="close-notif">×</button>
-        </div>
-      </transition>
-
-      <!-- Énigme Sekhmet (Clavier hiéroglyphes pour team2) -->
-      <div v-if="sekhmметUnlocked" class="enigma-section">
-        <HieroglyphKeyboard 
-          :player-id="currentUserId"
-          @validate-answer="validateSekhmet"
-        />
-      </div>
-
-      <!-- Colonne 2 : Section Bouton -->
-      <div class="button-section">
+      <!-- Avant l'énigme Sekhmet : interface de base -->
+      <div v-if="!showSekhmetSelection" class="waiting-section">
         <div class="content-box">
           <div class="user-badge-large">
             <div class="badge-icon-large">👥</div>
@@ -219,7 +182,7 @@ function goBack() {
             :class="{ enabled: isButtonEnabled }"
           >
             <span class="button-text">
-              {{ isButtonEnabled ? 'Activer Team 1' : 'En attente...' }}
+              {{ isButtonEnabled ? 'Activer Équipe 1' : 'En attente...' }}
             </span>
           </button>
 
@@ -228,9 +191,47 @@ function goBack() {
               ✨ Cliquez sur le bouton pour activer l'Équipe 1
             </p>
             <p v-else>
-              ⏳ Attendez que l'Équipe 1 vous active
+              ⏳ En attente que l'Équipe 1 résolve l'énigme de Chardin...
             </p>
           </div>
+        </div>
+
+        <div class="side-section">
+          <ProgressPanel
+            :team-score="teamScore"
+            :progress="progress"
+          />
+          
+          <ChatBox
+            :messages="messages"
+            :current-user-id="currentUserId"
+            :disabled="!isConnected"
+            @send-message="handleSendMessage"
+          />
+        </div>
+      </div>
+
+      <!-- Après Chardin : énigme Sekhmet avec clavier hiéroglyphique -->
+      <div v-else class="sekhmet-active">
+        <div class="sekhmet-section">
+          <HieroglyphKeyboard
+            :player-id="currentUserId"
+            @validate-answer="handleSekhmetValidate"
+          />
+        </div>
+
+        <div class="side-section">
+          <ProgressPanel
+            :team-score="teamScore"
+            :progress="progress"
+          />
+          
+          <ChatBox
+            :messages="messages"
+            :current-user-id="currentUserId"
+            :disabled="!isConnected"
+            @send-message="handleSendMessage"
+          />
         </div>
       </div>
     </div>
@@ -333,23 +334,91 @@ function goBack() {
   box-shadow: 0 0 10px #22c55e;
 }
 
+/* Notifications */
+.notification {
+  position: fixed;
+  top: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1.25rem 2rem;
+  border-radius: 1rem;
+  font-weight: 600;
+  font-size: 1.125rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  max-width: 90%;
+}
+
+.notification.error {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+.notification.success {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.close-notif {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.close-notif:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.4s ease;
+}
+
+.slide-down-enter-from {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
+}
+
+.slide-down-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
+}
+
 .main-content {
   max-width: 1400px;
   margin: 0 auto;
+}
+
+.waiting-section {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
 }
 
-/* Colonne Score + Chat */
-.score-chat-column {
+.sekhmet-active {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2rem;
+}
+
+.side-section {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}
-
-.button-section {
-  background: transparent;
 }
 
 .content-box {
@@ -370,7 +439,7 @@ function goBack() {
 }
 
 .user-badge-large h1 {
-  color: #a855f7;
+  color: #f5576c;
   font-size: 2rem;
   margin: 0;
 }
@@ -421,13 +490,13 @@ function goBack() {
 
 .action-button.enabled {
   cursor: pointer;
-  background: linear-gradient(135deg, #f093fb 0%, #a855f7 100%);
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
 }
 
 .action-button.enabled:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 30px rgba(168, 85, 247, 0.4);
+  box-shadow: 0 10px 30px rgba(245, 87, 108, 0.4);
 }
 
 .action-button.enabled:active {
@@ -448,7 +517,7 @@ function goBack() {
   line-height: 1.6;
 }
 
-/* Responsive Mobile */
+/* Responsive */
 @media (max-width: 968px) {
   .page-container {
     padding: 1rem;
@@ -456,7 +525,21 @@ function goBack() {
 
   .top-bar {
     justify-content: center;
-    gap: 0.5rem;
+  }
+
+  .waiting-section,
+  .sekhmet-active {
+    grid-template-columns: 1fr;
+  }
+
+  .content-box {
+    padding: 2rem 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-container {
+    padding: 0.75rem;
   }
 
   .back-button,
@@ -467,13 +550,8 @@ function goBack() {
     font-size: 0.95rem;
   }
 
-  .main-content {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-
   .content-box {
-    padding: 2rem 1.5rem;
+    padding: 1.5rem 1.25rem;
   }
 }
 </style>
